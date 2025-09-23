@@ -7,9 +7,12 @@ from typing import Dict, List, TypedDict, Annotated
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel
+from travel_tools import search_flights_tool, search_hotels_tool, search_car_rentals_tool
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +47,9 @@ class AgentState(TypedDict):
     messages: Annotated[List, add_messages]
     trip_spec: TripSpecification
     itinerary: TripItinerary
+    flight_options: List[Dict]
+    hotel_options: List[Dict]
+    car_rental_options: List[Dict]
 
 class TravelAgent:
     """LangGraph Travel Agent for creating trip itineraries"""
@@ -51,22 +57,55 @@ class TravelAgent:
     def __init__(self, model_name: str = "gpt-4o-mini"):
         """Initialize the travel agent with OpenAI model"""
         self.llm = ChatOpenAI(model=model_name, temperature=0.7)
+        self.tools = self._create_tools()
         self.graph = self._build_graph()
+    
+    def _create_tools(self):
+        """Create the tools for the agent"""
+        @tool
+        def search_flights(origin: str, destination: str, departure_date: str, 
+                          return_date: str = None, passengers: int = 1, 
+                          class_type: str = "economy") -> str:
+            """Search for flights from multiple providers"""
+            return search_flights_tool(origin, destination, departure_date, 
+                                     return_date, passengers, class_type)
+        
+        @tool
+        def search_hotels(destination: str, check_in: str, check_out: str, 
+                         guests: int = 1, rooms: int = 1) -> str:
+            """Search for hotels from multiple providers"""
+            return search_hotels_tool(destination, check_in, check_out, 
+                                    guests, rooms)
+        
+        @tool
+        def search_car_rentals(pickup_location: str, pickup_date: str, return_date: str,
+                              pickup_time: str = "10:00", return_time: str = "10:00") -> str:
+            """Search for car rentals from multiple providers"""
+            return search_car_rentals_tool(pickup_location, pickup_date, return_date,
+                                         pickup_time, return_time)
+        
+        return [search_flights, search_hotels, search_car_rentals]
     
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow"""
         workflow = StateGraph(AgentState)
         
+        # Create tool node
+        tool_node = ToolNode(self.tools)
+        
         # Add nodes
         workflow.add_node("parse_request", self._parse_request)
         workflow.add_node("research_destination", self._research_destination)
+        workflow.add_node("search_travel_options", self._search_travel_options)
+        workflow.add_node("tools", tool_node)
         workflow.add_node("create_itinerary", self._create_itinerary)
         workflow.add_node("refine_itinerary", self._refine_itinerary)
         
         # Add edges
         workflow.set_entry_point("parse_request")
         workflow.add_edge("parse_request", "research_destination")
-        workflow.add_edge("research_destination", "create_itinerary")
+        workflow.add_edge("research_destination", "search_travel_options")
+        workflow.add_edge("search_travel_options", "create_itinerary")
         workflow.add_edge("create_itinerary", "refine_itinerary")
         workflow.add_edge("refine_itinerary", END)
         
@@ -135,9 +174,67 @@ class TravelAgent:
         
         return state
     
+    def _search_travel_options(self, state: AgentState) -> AgentState:
+        """Search for flights, hotels, and car rentals"""
+        trip_spec = state["trip_spec"]
+        
+        # For demonstration, we'll use mock dates
+        # In a real implementation, you'd parse dates from the trip specification
+        departure_date = "2024-06-15"
+        return_date = "2024-06-20"
+        check_in = "2024-06-15"
+        check_out = "2024-06-20"
+        
+        # Search flights
+        flight_results = search_flights_tool(
+            origin="NYC",  # Default origin
+            destination=trip_spec.destination,
+            departure_date=departure_date,
+            return_date=return_date,
+            passengers=1
+        )
+        
+        # Search hotels
+        hotel_results = search_hotels_tool(
+            destination=trip_spec.destination,
+            check_in=check_in,
+            check_out=check_out,
+            guests=1,
+            rooms=1
+        )
+        
+        # Search car rentals
+        car_rental_results = search_car_rentals_tool(
+            pickup_location=trip_spec.destination,
+            pickup_date=departure_date,
+            return_date=return_date
+        )
+        
+        state["flight_options"] = [{"results": flight_results}]
+        state["hotel_options"] = [{"results": hotel_results}]
+        state["car_rental_options"] = [{"results": car_rental_results}]
+        
+        state["messages"].append(AIMessage(content=f"Found travel options for {trip_spec.destination}"))
+        
+        return state
+    
     def _create_itinerary(self, state: AgentState) -> AgentState:
         """Create a detailed day-by-day itinerary"""
         trip_spec = state["trip_spec"]
+        
+        # Get travel options
+        flight_options = state.get("flight_options", [])
+        hotel_options = state.get("hotel_options", [])
+        car_rental_options = state.get("car_rental_options", [])
+        
+        # Build travel options summary
+        travel_summary = ""
+        if flight_options:
+            travel_summary += f"\nFlight Options:\n{flight_options[0].get('results', 'No flights found')}\n"
+        if hotel_options:
+            travel_summary += f"\nHotel Options:\n{hotel_options[0].get('results', 'No hotels found')}\n"
+        if car_rental_options:
+            travel_summary += f"\nCar Rental Options:\n{car_rental_options[0].get('results', 'No car rentals found')}\n"
         
         prompt = f"""
         Create a detailed {trip_spec.duration} itinerary for {trip_spec.destination}.
@@ -150,6 +247,9 @@ class TravelAgent:
         - Travel Style: {trip_spec.travel_style}
         - Accommodation: {trip_spec.accommodation_preference}
         
+        Available Travel Options:
+        {travel_summary}
+        
         For each day, include:
         1. Morning activities
         2. Afternoon activities
@@ -157,8 +257,10 @@ class TravelAgent:
         4. Meal recommendations
         5. Transportation between locations
         6. Estimated costs for the day
+        7. Recommended flights, hotels, and car rentals from the options above
         
         Make the itinerary realistic and enjoyable, considering travel time between locations.
+        Use the actual travel options provided to make specific recommendations.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
@@ -222,7 +324,10 @@ class TravelAgent:
         initial_state = {
             "messages": [HumanMessage(content=user_request)],
             "trip_spec": None,
-            "itinerary": None
+            "itinerary": None,
+            "flight_options": [],
+            "hotel_options": [],
+            "car_rental_options": []
         }
         
         # Run the graph
@@ -231,6 +336,9 @@ class TravelAgent:
         return {
             "trip_specification": final_state["trip_spec"],
             "itinerary": final_state["itinerary"],
+            "flight_options": final_state.get("flight_options", []),
+            "hotel_options": final_state.get("hotel_options", []),
+            "car_rental_options": final_state.get("car_rental_options", []),
             "conversation": final_state["messages"]
         }
 

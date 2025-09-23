@@ -10,6 +10,8 @@ A simple LangGraph agent that takes user trip specifications and creates detaile
 - **Detailed Itineraries**: Creates day-by-day itineraries with activities, meals, and costs
 - **Budget-Aware**: Considers budget constraints in itinerary planning
 - **Flexible Input**: Accepts natural language trip descriptions
+- **Real Travel Data**: Integrates with flight, hotel, and car rental search tools
+- **Multi-Provider Search**: Searches multiple travel providers for best options
 
 ## Architecture
 
@@ -17,8 +19,28 @@ The agent uses a LangGraph workflow with the following nodes:
 
 1. **Parse Request**: Extracts structured information from natural language input
 2. **Research Destination**: Gathers relevant information about the destination
-3. **Create Itinerary**: Generates a detailed day-by-day itinerary
-4. **Refine Itinerary**: Reviews and improves the itinerary
+3. **Search Travel Options**: Searches for flights, hotels, and car rentals
+4. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
+5. **Refine Itinerary**: Reviews and improves the itinerary
+
+## Travel Tools
+
+The agent includes integrated tools for searching travel options:
+
+### Flight Search
+- **Google Flights**: Searches multiple airlines and routes
+- **Skyscanner**: Alternative flight search provider
+- **Features**: Price comparison, stop information, duration, airline details
+
+### Hotel Search
+- **Booking.com**: Comprehensive hotel search
+- **Expedia**: Alternative hotel provider
+- **Features**: Price per night, ratings, amenities, location details
+
+### Car Rental Search
+- **Hertz**: Premium car rental options
+- **Avis**: Alternative car rental provider
+- **Features**: Car types, pricing, features, pickup locations
 
 ## Installation
 
@@ -69,6 +91,18 @@ python example_usage.py
 
 # Run in interactive mode
 python example_usage.py interactive
+```
+
+### Testing Travel Tools
+
+```bash
+# Test all travel tools
+python test_tools.py
+
+# Test individual components
+python test_tools.py tools      # Test travel tools only
+python test_tools.py agent      # Test agent with tools
+python test_tools.py functions  # Test individual tool functions
 ```
 
 ### Running the Main Script
@@ -167,22 +201,31 @@ workflow.add_edge("custom_node", "refine_itinerary")
 - `langchain-core`: Core LangChain components
 - `python-dotenv`: Environment variable management
 - `pydantic`: Data validation and settings
+- `requests`: HTTP requests for API calls
+- `beautifulsoup4`: Web scraping functionality
+- `selenium`: Browser automation for dynamic content
+- `webdriver-manager`: Automatic driver management
 
 ## Limitations
 
 - Requires OpenAI API key and internet connection
 - Itinerary quality depends on the AI model's knowledge
-- No real-time data (prices, availability, etc.)
+- Travel tools currently use mock data (can be extended with real APIs)
 - Basic parsing of natural language input
+- Chrome browser required for Selenium-based scraping
 
 ## Future Enhancements
 
-- Integration with real-time travel APIs
+- Integration with real-time travel APIs (Amadeus, Skyscanner API, etc.)
 - More sophisticated natural language parsing
 - Support for multi-city trips
 - Integration with booking systems
 - Weather and seasonal considerations
 - User preference learning
+- Real-time price monitoring
+- Integration with travel insurance providers
+- Support for group bookings
+- Mobile app development
 
 ## License
 
