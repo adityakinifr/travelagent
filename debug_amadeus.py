@@ -3,11 +3,30 @@ Debug script for Amadeus API issues
 """
 
 import os
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from amadeus import Client, ResponseError
 
 # Load environment variables
 load_dotenv()
+
+def get_test_dates():
+    """Get realistic test dates based on today"""
+    today = datetime.now()
+    
+    # Use dates 30 days from now for realistic booking
+    departure_date = (today + timedelta(days=30)).strftime('%Y-%m-%d')
+    return_date = (today + timedelta(days=37)).strftime('%Y-%m-%d')  # 7-day trip
+    check_in = departure_date
+    check_out = return_date
+    
+    return {
+        'departure_date': departure_date,
+        'return_date': return_date,
+        'check_in': check_in,
+        'check_out': check_out,
+        'today': today.strftime('%Y-%m-%d')
+    }
 
 def test_amadeus_connection():
     """Test basic Amadeus API connection"""
@@ -74,13 +93,14 @@ def test_flight_search():
             hostname='test'
         )
         
+        dates = get_test_dates()
         print("\n🔍 Testing flight search...")
-        print("Searching: NYC → LAX on 2024-07-15")
+        print(f"Searching: NYC → LAX on {dates['departure_date']}")
         
         response = amadeus.shopping.flight_offers_search.get(
             originLocationCode='NYC',
             destinationLocationCode='LAX',
-            departureDate='2024-07-15',
+            departureDate=dates['departure_date'],
             adults=1,
             max=3
         )
@@ -122,8 +142,9 @@ def test_hotel_search():
             hostname='test'
         )
         
+        dates = get_test_dates()
         print("\n🔍 Testing hotel search...")
-        print("Searching hotels in Paris for 2024-07-15 to 2024-07-17")
+        print(f"Searching hotels in Paris for {dates['check_in']} to {dates['check_out']}")
         
         # First get city code
         city_response = amadeus.reference_data.locations.get(
@@ -154,8 +175,8 @@ def test_hotel_search():
         # Search hotels using hotel IDs
         response = amadeus.shopping.hotel_offers_search.get(
             hotelIds=','.join(hotel_ids),
-            checkInDate='2024-07-15',
-            checkOutDate='2024-07-17',
+            checkInDate=dates['check_in'],
+            checkOutDate=dates['check_out'],
             adults=1,
             roomQuantity=1
         )
@@ -186,6 +207,15 @@ def main():
     """Run all tests"""
     print("🚀 Amadeus API Debug Tool")
     print("=" * 50)
+    
+    # Show date information
+    dates = get_test_dates()
+    print(f"Today: {dates['today']}")
+    print(f"Testing with departure: {dates['departure_date']} (30 days from today)")
+    print(f"Testing with return: {dates['return_date']} (37 days from today)")
+    print(f"Hotel check-in: {dates['check_in']}")
+    print(f"Hotel check-out: {dates['check_out']}")
+    print()
     
     # Test connection
     if not test_amadeus_connection():
