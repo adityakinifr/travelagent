@@ -138,14 +138,26 @@ def test_hotel_search():
         city_code = city_response.data[0]['iataCode']
         print(f"✅ Found city code: {city_code}")
         
-        # Search hotels
+        # Get hotel list first to get hotel IDs
+        hotel_list_response = amadeus.reference_data.locations.hotels.by_city.get(
+            cityCode=city_code
+        )
+        
+        if not hotel_list_response.data:
+            print("❌ Could not find hotels for Paris")
+            return False
+        
+        # Get hotel IDs (limit to 3 for testing)
+        hotel_ids = [hotel['hotelId'] for hotel in hotel_list_response.data[:3]]
+        print(f"✅ Found {len(hotel_ids)} hotels: {hotel_ids}")
+        
+        # Search hotels using hotel IDs
         response = amadeus.shopping.hotel_offers_search.get(
-            cityCode=city_code,
+            hotelIds=','.join(hotel_ids),
             checkInDate='2024-07-15',
             checkOutDate='2024-07-17',
             adults=1,
-            roomQuantity=1,
-            max=3
+            roomQuantity=1
         )
         
         if response.data:

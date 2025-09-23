@@ -402,14 +402,26 @@ class RealTravelAPIs:
             city_code = city_response.data[0]['iataCode']
             print(f"Using city code: {city_code}")
             
-            # Search for hotels
+            # Get hotel list first to get hotel IDs
+            hotel_list_response = self.amadeus_client.reference_data.locations.hotels.by_city.get(
+                cityCode=city_code
+            )
+            
+            if not hotel_list_response.data:
+                print(f"No hotels found for city: {city_code}")
+                return []
+            
+            # Get hotel IDs (limit to 5 for test environment)
+            hotel_ids = [hotel['hotelId'] for hotel in hotel_list_response.data[:5]]
+            print(f"Found {len(hotel_ids)} hotels: {hotel_ids}")
+            
+            # Search for hotel offers using hotel IDs
             response = self.amadeus_client.shopping.hotel_offers_search.get(
-                cityCode=city_code,
+                hotelIds=','.join(hotel_ids),
                 checkInDate=search.check_in,
                 checkOutDate=search.check_out,
                 adults=search.guests,
-                roomQuantity=search.rooms,
-                max=5  # Reduce to 5 for test environment
+                roomQuantity=search.rooms
             )
             
             hotels = []
