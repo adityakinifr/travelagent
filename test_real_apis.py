@@ -215,8 +215,9 @@ def show_api_setup_instructions():
     print("   - Go to: https://developers.amadeus.com/")
     print("   - Sign up for a free account")
     print("   - Create a new app to get API key and secret")
-    print("   - Add to .env: AMADEUS_API_KEY=your_key")
-    print("   - Add to .env: AMADEUS_API_SECRET=your_secret")
+    print("   - Note: This uses the TEST environment (not production)")
+    print("   - Add to .env: AMADEUS_API_KEY=your_test_key")
+    print("   - Add to .env: AMADEUS_API_SECRET=your_test_secret")
     
     print("\n2. SerpAPI (Google Flights):")
     print("   - Go to: https://serpapi.com/")

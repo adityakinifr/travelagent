@@ -90,7 +90,8 @@ class RealTravelAPIs:
         if amadeus_key and amadeus_secret:
             self.amadeus_client = Client(
                 client_id=amadeus_key,
-                client_secret=amadeus_secret
+                client_secret=amadeus_secret,
+                hostname='https://test.api.amadeus.com'  # Use specific test API URL
             )
     
     def search_flights_amadeus(self, search: FlightSearch) -> List[FlightResult]:

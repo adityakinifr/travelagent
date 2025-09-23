@@ -44,6 +44,8 @@ The agent includes integrated tools for searching real travel options:
 ### API Configuration
 The system supports multiple API providers with automatic fallback:
 1. **Primary**: Amadeus API (recommended - covers all travel types)
+   - **Uses TEST environment by default** (not production)
+   - Safe for development and testing
 2. **Fallback**: SerpAPI for flights if Amadeus unavailable
 3. **Fallback**: FlightsAPI.io for additional flight options
 
@@ -66,8 +68,9 @@ cp env_example.txt .env
 OPENAI_API_KEY=your_openai_api_key_here
 
 # Travel APIs (at least one required for real data)
-AMADEUS_API_KEY=your_amadeus_api_key_here
-AMADEUS_API_SECRET=your_amadeus_api_secret_here
+# Note: Amadeus uses TEST environment by default (not production)
+AMADEUS_API_KEY=your_amadeus_test_api_key_here
+AMADEUS_API_SECRET=your_amadeus_test_api_secret_here
 SERPAPI_KEY=your_serpapi_key_here
 FLIGHTSAPI_KEY=your_flightsapi_key_here
 ```

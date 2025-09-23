@@ -1,7 +1,8 @@
 OPENAI_API_KEY=your_openai_api_key_here
 
 # Travel APIs
-AMADEUS_API_KEY=your_amadeus_api_key_here
-AMADEUS_API_SECRET=your_amadeus_api_secret_here
+# Note: Amadeus uses TEST environment by default (not production)
+AMADEUS_API_KEY=your_amadeus_test_api_key_here
+AMADEUS_API_SECRET=your_amadeus_test_api_secret_here
 SERPAPI_KEY=your_serpapi_key_here
 FLIGHTSAPI_KEY=your_flightsapi_key_here
