@@ -25,22 +25,27 @@ The agent uses a LangGraph workflow with the following nodes:
 
 ## Travel Tools
 
-The agent includes integrated tools for searching travel options:
+The agent includes integrated tools for searching real travel options:
 
-### Flight Search
-- **Google Flights**: Searches multiple airlines and routes
-- **Skyscanner**: Alternative flight search provider
-- **Features**: Price comparison, stop information, duration, airline details
+### Flight Search APIs
+- **Amadeus API**: Comprehensive flight search with real-time data
+- **SerpAPI (Google Flights)**: Access to Google Flights data
+- **FlightsAPI.io**: Alternative flight search provider
+- **Features**: Real-time prices, schedules, airline details, stop information
 
-### Hotel Search
-- **Booking.com**: Comprehensive hotel search
-- **Expedia**: Alternative hotel provider
-- **Features**: Price per night, ratings, amenities, location details
+### Hotel Search APIs
+- **Amadeus API**: Real-time hotel availability and pricing
+- **Features**: Live rates, availability, amenities, ratings, location details
 
-### Car Rental Search
-- **Hertz**: Premium car rental options
-- **Avis**: Alternative car rental provider
-- **Features**: Car types, pricing, features, pickup locations
+### Car Rental Search APIs
+- **Amadeus API**: Real-time car rental options
+- **Features**: Live availability, pricing, vehicle types, pickup locations
+
+### API Configuration
+The system supports multiple API providers with automatic fallback:
+1. **Primary**: Amadeus API (recommended - covers all travel types)
+2. **Fallback**: SerpAPI for flights if Amadeus unavailable
+3. **Fallback**: FlightsAPI.io for additional flight options
 
 ## Installation
 
@@ -51,14 +56,20 @@ The agent includes integrated tools for searching travel options:
 pip install -r requirements.txt
 ```
 
-3. Set up your OpenAI API key:
+3. Set up your API keys:
 
 ```bash
 # Copy the example environment file
 cp env_example.txt .env
 
-# Edit .env and add your OpenAI API key
+# Edit .env and add your API keys
 OPENAI_API_KEY=your_openai_api_key_here
+
+# Travel APIs (at least one required for real data)
+AMADEUS_API_KEY=your_amadeus_api_key_here
+AMADEUS_API_SECRET=your_amadeus_api_secret_here
+SERPAPI_KEY=your_serpapi_key_here
+FLIGHTSAPI_KEY=your_flightsapi_key_here
 ```
 
 ## Usage
@@ -96,13 +107,17 @@ python example_usage.py interactive
 ### Testing Travel Tools
 
 ```bash
-# Test all travel tools
-python test_tools.py
+# Test real APIs
+python test_real_apis.py
 
 # Test individual components
-python test_tools.py tools      # Test travel tools only
-python test_tools.py agent      # Test agent with tools
-python test_tools.py functions  # Test individual tool functions
+python test_real_apis.py apis      # Test real APIs only
+python test_real_apis.py agent     # Test agent with real APIs
+python test_real_apis.py functions # Test individual API functions
+python test_real_apis.py setup     # Show API setup instructions
+
+# Test mock data (legacy)
+python test_tools.py
 ```
 
 ### Running the Main Script
@@ -202,30 +217,32 @@ workflow.add_edge("custom_node", "refine_itinerary")
 - `python-dotenv`: Environment variable management
 - `pydantic`: Data validation and settings
 - `requests`: HTTP requests for API calls
-- `beautifulsoup4`: Web scraping functionality
-- `selenium`: Browser automation for dynamic content
-- `webdriver-manager`: Automatic driver management
+- `amadeus`: Official Amadeus API client
+- `google-search-results`: SerpAPI client for Google Flights
 
 ## Limitations
 
 - Requires OpenAI API key and internet connection
+- Requires at least one travel API key for real data
 - Itinerary quality depends on the AI model's knowledge
-- Travel tools currently use mock data (can be extended with real APIs)
+- API rate limits may apply (especially for free tiers)
 - Basic parsing of natural language input
-- Chrome browser required for Selenium-based scraping
+- Some APIs may have geographic restrictions
 
 ## Future Enhancements
 
-- Integration with real-time travel APIs (Amadeus, Skyscanner API, etc.)
+- Integration with additional travel APIs (Skyscanner API, Booking.com API, etc.)
 - More sophisticated natural language parsing
 - Support for multi-city trips
 - Integration with booking systems
 - Weather and seasonal considerations
 - User preference learning
-- Real-time price monitoring
+- Real-time price monitoring and alerts
 - Integration with travel insurance providers
 - Support for group bookings
 - Mobile app development
+- Caching for improved performance
+- Advanced filtering and sorting options
 
 ## License
 

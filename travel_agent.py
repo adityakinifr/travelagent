@@ -12,7 +12,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel
-from travel_tools import search_flights_tool, search_hotels_tool, search_car_rentals_tool
+from real_travel_apis import search_flights_real_api, search_hotels_real_api, search_car_rentals_real_api
 
 # Load environment variables
 load_dotenv()
@@ -66,23 +66,23 @@ class TravelAgent:
         def search_flights(origin: str, destination: str, departure_date: str, 
                           return_date: str = None, passengers: int = 1, 
                           class_type: str = "economy") -> str:
-            """Search for flights from multiple providers"""
-            return search_flights_tool(origin, destination, departure_date, 
-                                     return_date, passengers, class_type)
+            """Search for flights from multiple providers using real APIs"""
+            return search_flights_real_api(origin, destination, departure_date, 
+                                         return_date, passengers, class_type)
         
         @tool
         def search_hotels(destination: str, check_in: str, check_out: str, 
                          guests: int = 1, rooms: int = 1) -> str:
-            """Search for hotels from multiple providers"""
-            return search_hotels_tool(destination, check_in, check_out, 
-                                    guests, rooms)
+            """Search for hotels from multiple providers using real APIs"""
+            return search_hotels_real_api(destination, check_in, check_out, 
+                                        guests, rooms)
         
         @tool
         def search_car_rentals(pickup_location: str, pickup_date: str, return_date: str,
                               pickup_time: str = "10:00", return_time: str = "10:00") -> str:
-            """Search for car rentals from multiple providers"""
-            return search_car_rentals_tool(pickup_location, pickup_date, return_date,
-                                         pickup_time, return_time)
+            """Search for car rentals from multiple providers using real APIs"""
+            return search_car_rentals_real_api(pickup_location, pickup_date, return_date,
+                                             pickup_time, return_time)
         
         return [search_flights, search_hotels, search_car_rentals]
     
@@ -186,7 +186,7 @@ class TravelAgent:
         check_out = "2024-06-20"
         
         # Search flights
-        flight_results = search_flights_tool(
+        flight_results = search_flights_real_api(
             origin="NYC",  # Default origin
             destination=trip_spec.destination,
             departure_date=departure_date,
@@ -195,7 +195,7 @@ class TravelAgent:
         )
         
         # Search hotels
-        hotel_results = search_hotels_tool(
+        hotel_results = search_hotels_real_api(
             destination=trip_spec.destination,
             check_in=check_in,
             check_out=check_out,
@@ -204,7 +204,7 @@ class TravelAgent:
         )
         
         # Search car rentals
-        car_rental_results = search_car_rentals_tool(
+        car_rental_results = search_car_rentals_real_api(
             pickup_location=trip_spec.destination,
             pickup_date=departure_date,
             return_date=return_date
