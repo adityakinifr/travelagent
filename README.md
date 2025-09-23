@@ -23,6 +23,45 @@ The agent uses a LangGraph workflow with the following nodes:
 4. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
 5. **Refine Itinerary**: Reviews and improves the itinerary
 
+### Workflow Diagram
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│   Parse Request │───▶│ Research         │───▶│ Search Travel       │
+│                 │    │ Destination      │    │ Options             │
+│ • Extract trip  │    │                  │    │                     │
+│   details       │    │ • Best time to   │    │ • Amadeus API       │
+│ • Structure     │    │   visit          │    │ • SerpAPI           │
+│   data          │    │ • Attractions    │    │ • FlightsAPI.io     │
+│ • Validate      │    │ • Local cuisine  │    │ • Real-time data    │
+└─────────────────┘    │ • Transportation │    │ • Price comparison  │
+                       │ • Culture        │    └─────────────────────┘
+                       └──────────────────┘              │
+                                                         ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│   Refine        │◀───│ Create           │◀───│ Travel Options      │
+│   Itinerary     │    │ Itinerary        │    │ Results             │
+│                 │    │                  │    │                     │
+│ • Review flow   │    │ • Day-by-day     │    │ • Flight options    │
+│ • Check timing  │    │   activities     │    │ • Hotel options     │
+│ • Add tips      │    │ • Meal plans     │    │ • Car rental        │
+│ • Final polish  │    │ • Transportation │    │   options           │
+│                 │    │ • Cost estimates │    │ • Integrated into   │
+└─────────────────┘    │ • Travel options │    │   recommendations   │
+                       └──────────────────┘    └─────────────────────┘
+```
+
+### Data Flow
+
+```
+User Input → Parse → Research → Search APIs → Create → Refine → Final Itinerary
+    │           │        │         │          │        │
+    ▼           ▼        ▼         ▼          ▼        ▼
+Natural    Structured  Destination  Real      Detailed  Polished
+Language   Trip Data   Information  Travel    Itinerary Itinerary
+Request               & Context     Options   with Data
+```
+
 ## Travel Tools
 
 The agent includes integrated tools for searching real travel options:
@@ -48,6 +87,44 @@ The system supports multiple API providers with automatic fallback:
    - Safe for development and testing
 2. **Fallback**: SerpAPI for flights if Amadeus unavailable
 3. **Fallback**: FlightsAPI.io for additional flight options
+
+### API Integration Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Travel Agent Core                            │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │   Flights   │  │   Hotels    │  │ Car Rentals │            │
+│  │   Search    │  │   Search    │  │   Search    │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+└─────────────────────────────────────────────────────────────────┘
+           │                │                │
+           ▼                ▼                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    API Layer                                    │
+│                                                                 │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐        │
+│  │   Amadeus   │    │   SerpAPI   │    │ FlightsAPI  │        │
+│  │     API     │    │ (Google     │    │     .io     │        │
+│  │             │    │  Flights)   │    │             │        │
+│  │ • Flights   │    │             │    │             │        │
+│  │ • Hotels    │    │ • Flights   │    │ • Flights   │        │
+│  │ • Cars      │    │ • Real-time │    │ • Global    │        │
+│  │ • Test env  │    │ • Google    │    │ • 500+      │        │
+│  │             │    │   data      │    │   airlines  │        │
+│  └─────────────┘    └─────────────┘    └─────────────┘        │
+│           │                │                │                  │
+│           ▼                ▼                ▼                  │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │              Automatic Fallback System                  │  │
+│  │  • Try Amadeus first (comprehensive)                   │  │
+│  │  • Fallback to SerpAPI if needed                       │  │
+│  │  │  • Fallback to FlightsAPI.io if needed              │  │
+│  │  • Sort results by price                               │  │
+│  │  • Return top 10 options                               │  │
+│  └─────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Installation
 
