@@ -94,6 +94,125 @@ class RealTravelAPIs:
                 hostname='test'  # Use test environment (maps to test.api.amadeus.com)
             )
     
+    def _get_location_code(self, location: str) -> str:
+        """Convert city name to IATA code"""
+        # Common city to IATA code mappings
+        city_mappings = {
+            'new york': 'NYC',
+            'nyc': 'NYC',
+            'new york city': 'NYC',
+            'paris': 'PAR',
+            'london': 'LON',
+            'los angeles': 'LAX',
+            'lax': 'LAX',
+            'san francisco': 'SFO',
+            'sfo': 'SFO',
+            'chicago': 'CHI',
+            'miami': 'MIA',
+            'boston': 'BOS',
+            'seattle': 'SEA',
+            'denver': 'DEN',
+            'las vegas': 'LAS',
+            'atlanta': 'ATL',
+            'dallas': 'DFW',
+            'houston': 'IAH',
+            'phoenix': 'PHX',
+            'rome': 'ROM',
+            'madrid': 'MAD',
+            'barcelona': 'BCN',
+            'amsterdam': 'AMS',
+            'berlin': 'BER',
+            'munich': 'MUC',
+            'frankfurt': 'FRA',
+            'zurich': 'ZUR',
+            'vienna': 'VIE',
+            'prague': 'PRG',
+            'budapest': 'BUD',
+            'warsaw': 'WAW',
+            'stockholm': 'ARN',
+            'copenhagen': 'CPH',
+            'oslo': 'OSL',
+            'helsinki': 'HEL',
+            'dublin': 'DUB',
+            'edinburgh': 'EDI',
+            'manchester': 'MAN',
+            'birmingham': 'BHX',
+            'glasgow': 'GLA',
+            'tokyo': 'NRT',
+            'osaka': 'KIX',
+            'seoul': 'ICN',
+            'beijing': 'PEK',
+            'shanghai': 'PVG',
+            'hong kong': 'HKG',
+            'singapore': 'SIN',
+            'bangkok': 'BKK',
+            'kuala lumpur': 'KUL',
+            'jakarta': 'CGK',
+            'manila': 'MNL',
+            'sydney': 'SYD',
+            'melbourne': 'MEL',
+            'perth': 'PER',
+            'brisbane': 'BNE',
+            'adelaide': 'ADL',
+            'auckland': 'AKL',
+            'wellington': 'WLG',
+            'christchurch': 'CHC',
+            'mumbai': 'BOM',
+            'delhi': 'DEL',
+            'bangalore': 'BLR',
+            'chennai': 'MAA',
+            'hyderabad': 'HYD',
+            'kolkata': 'CCU',
+            'pune': 'PNQ',
+            'ahmedabad': 'AMD',
+            'kochi': 'COK',
+            'goa': 'GOI',
+            'jaipur': 'JAI',
+            'lucknow': 'LKO',
+            'chandigarh': 'IXC',
+            'indore': 'IDR',
+            'bhopal': 'BHO',
+            'visakhapatnam': 'VTZ',
+            'coimbatore': 'CJB',
+            'madurai': 'IXM',
+            'tiruchirapalli': 'TRZ',
+            'salem': 'SXV',
+            'tirunelveli': 'TJV',
+            'tuticorin': 'TCR',
+            'rajahmundry': 'RJA',
+            'vijayawada': 'VGA',
+            'guntur': 'GNT',
+            'kadapa': 'CDP',
+            'kurnool': 'KJB',
+            'anantapur': 'ATP',
+            'chittoor': 'CTR',
+            'nellore': 'NLR',
+            'ongole': 'OGL',
+            'eluru': 'ELR',
+            'bhimavaram': 'BVM',
+            'tadepalligudem': 'TDP',
+            'tanuku': 'TNK',
+            'palakollu': 'PKL',
+            'narsapur': 'NSP',
+            'bhimavaram': 'BVM',
+            'tadepalligudem': 'TDP',
+            'tanuku': 'TNK',
+            'palakollu': 'PKL',
+            'narsapur': 'NSP'
+        }
+        
+        # Try to find exact match
+        location_lower = location.lower().strip()
+        if location_lower in city_mappings:
+            return city_mappings[location_lower]
+        
+        # If it's already a 3-letter code, return as is
+        if len(location) == 3 and location.isalpha():
+            return location.upper()
+        
+        # Default fallback - try to use the first 3 letters
+        return location[:3].upper()
+
     def search_flights_amadeus(self, search: FlightSearch) -> List[FlightResult]:
         """Search flights using Amadeus API"""
         if not self.amadeus_client:
@@ -101,10 +220,16 @@ class RealTravelAPIs:
             return []
         
         try:
+            # Convert city names to IATA codes
+            origin_code = self._get_location_code(search.origin)
+            destination_code = self._get_location_code(search.destination)
+            
+            print(f"Searching flights: {origin_code} → {destination_code}")
+            
             # Search for flights - use correct parameter names
             response = self.amadeus_client.shopping.flight_offers_search.get(
-                originLocationCode=search.origin,
-                destinationLocationCode=search.destination,
+                originLocationCode=origin_code,
+                destinationLocationCode=destination_code,
                 departureDate=search.departure_date,
                 adults=search.passengers,
                 max=5  # Reduce to 5 for test environment
@@ -260,20 +385,25 @@ class RealTravelAPIs:
             return []
         
         try:
-            # First, get the city code for the destination
+            # Convert destination to IATA code
+            destination_code = self._get_location_code(search.destination)
+            print(f"Searching hotels in: {destination_code}")
+            
+            # First, get the city code for the destination using IATA code
             city_response = self.amadeus_client.reference_data.locations.get(
-                keyword=search.destination,
+                keyword=destination_code,
                 subType='CITY'
             )
             
             if not city_response.data:
-                print(f"No city found for destination: {search.destination}")
+                print(f"No city found for destination: {destination_code}")
                 return []
             
             city_code = city_response.data[0]['iataCode']
+            print(f"Using city code: {city_code}")
             
             # Search for hotels
-            response = self.amadeus_client.shopping.hotel_offers.get(
+            response = self.amadeus_client.shopping.hotel_offers_search.get(
                 cityCode=city_code,
                 checkInDate=search.check_in,
                 checkOutDate=search.check_out,
@@ -320,6 +450,10 @@ class RealTravelAPIs:
             return []
         
         try:
+            # Convert pickup location to IATA code
+            pickup_code = self._get_location_code(search.pickup_location)
+            print(f"Searching car rentals in: {pickup_code}")
+            
             # Note: Amadeus car rental API is not available in the test environment
             # and may not be available in the current API version
             # For now, we'll return mock data for demonstration
@@ -332,7 +466,7 @@ class RealTravelAPIs:
                     car_type="Economy Car",
                     price_per_day="USD 45",
                     total_price="USD 315",
-                    pickup_location=search.pickup_location,
+                    pickup_location=pickup_code,
                     features=["Automatic", "AC", "4 doors"],
                     availability=True,
                     currency="USD"
@@ -342,7 +476,7 @@ class RealTravelAPIs:
                     car_type="Mid-size SUV",
                     price_per_day="USD 75",
                     total_price="USD 525",
-                    pickup_location=search.pickup_location,
+                    pickup_location=pickup_code,
                     features=["Automatic", "AC", "GPS", "Bluetooth"],
                     availability=True,
                     currency="USD"
@@ -352,7 +486,7 @@ class RealTravelAPIs:
                     car_type="Compact Car",
                     price_per_day="USD 40",
                     total_price="USD 280",
-                    pickup_location=search.pickup_location,
+                    pickup_location=pickup_code,
                     features=["Manual", "AC", "4 doors"],
                     availability=True,
                     currency="USD"

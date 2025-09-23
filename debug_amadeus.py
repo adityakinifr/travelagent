@@ -34,13 +34,13 @@ def test_amadeus_connection():
         # Test authentication
         print("\n🔍 Testing authentication...")
         response = amadeus.reference_data.locations.get(
-            keyword='Paris',
+            keyword='PAR',
             subType='CITY'
         )
         
         if response.data:
             print("✅ Authentication successful")
-            print(f"✅ Found {len(response.data)} cities for 'Paris'")
+            print(f"✅ Found {len(response.data)} cities for 'PAR'")
             for city in response.data[:3]:
                 print(f"   - {city.get('name', 'Unknown')} ({city.get('iataCode', 'N/A')})")
         else:
@@ -127,7 +127,7 @@ def test_hotel_search():
         
         # First get city code
         city_response = amadeus.reference_data.locations.get(
-            keyword='Paris',
+            keyword='PAR',
             subType='CITY'
         )
         
@@ -139,7 +139,7 @@ def test_hotel_search():
         print(f"✅ Found city code: {city_code}")
         
         # Search hotels
-        response = amadeus.shopping.hotel_offers.get(
+        response = amadeus.shopping.hotel_offers_search.get(
             cityCode=city_code,
             checkInDate='2024-07-15',
             checkOutDate='2024-07-17',
