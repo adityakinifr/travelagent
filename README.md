@@ -1,4 +1,4 @@
-# Travel Agent - LangGraph Itinerary Creator
+# Travel Agent - Itinerary Creator
 
 A simple LangGraph agent that takes user trip specifications and creates detailed travel itineraries using OpenAI's GPT models.
 
