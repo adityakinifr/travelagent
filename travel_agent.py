@@ -10,7 +10,6 @@ from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel
 from real_travel_apis import search_flights_real_api, search_hotels_real_api, search_car_rentals_real_api
 
@@ -90,14 +89,10 @@ class TravelAgent:
         """Build the LangGraph workflow"""
         workflow = StateGraph(AgentState)
         
-        # Create tool node
-        tool_node = ToolNode(self.tools)
-        
         # Add nodes
         workflow.add_node("parse_request", self._parse_request)
         workflow.add_node("research_destination", self._research_destination)
         workflow.add_node("search_travel_options", self._search_travel_options)
-        workflow.add_node("tools", tool_node)
         workflow.add_node("create_itinerary", self._create_itinerary)
         workflow.add_node("refine_itinerary", self._refine_itinerary)
         
