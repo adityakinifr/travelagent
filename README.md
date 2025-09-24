@@ -15,29 +15,47 @@ A simple LangGraph agent that takes user trip specifications and creates detaile
 
 ## Architecture
 
-The agent uses a LangGraph workflow with the following nodes:
+The system uses a **multi-agent architecture** with specialized agents:
+
+### Main Travel Agent (LangGraph)
+The primary agent orchestrates the workflow through these nodes:
 
 1. **Parse Request**: Extracts structured information from natural language input
-2. **Research Destination**: Gathers relevant information about the destination
+2. **Research Destination**: Uses specialized Destination Research Agent
 3. **Search Travel Options**: Searches for flights and hotels
 4. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
 5. **Refine Itinerary**: Reviews and improves the itinerary
+
+### Destination Research Agent
+A specialized agent that handles various types of destination requests:
+
+- **Specific Destinations**: "I want to visit Paris"
+- **Abstract Requests**: "Sunny beach destination 3 hours from SFO"
+- **Multi-Location**: "Should I visit Tokyo or Seoul?"
+- **Constrained Requests**: "Mountain destination within 2 hours of Denver"
+
+**Capabilities:**
+- Analyzes request type automatically
+- Extracts travel parameters (budget, interests, constraints)
+- Provides comprehensive destination research
+- Offers multiple destination options with comparisons
 
 ### Workflow Diagram
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   Parse Request │───▶│ Research         │───▶│ Search Travel       │
-│                 │    │ Destination      │    │ Options             │
+│   Parse Request │───▶│ Destination      │───▶│ Search Travel       │
+│                 │    │ Research Agent   │    │ Options             │
 │ • Extract trip  │    │                  │    │                     │
-│   details       │    │ • Best time to   │    │ • Amadeus API       │
-│ • Structure     │    │   visit          │    │ • SerpAPI           │
-│   data          │    │ • Attractions    │    │ • FlightsAPI.io     │
-│ • Validate      │    │ • Local cuisine  │    │ • Real-time data    │
-└─────────────────┘    │ • Transportation │    │ • Price comparison  │
-                       │ • Culture        │    └─────────────────────┘
-                       └──────────────────┘              │
-                                                         ▼
+│   details       │    │ • Specific:      │    │ • Amadeus API       │
+│ • Structure     │    │   "Paris"        │    │ • SerpAPI           │
+│   data          │    │ • Abstract:      │    │ • FlightsAPI.io     │
+│ • Validate      │    │   "Beach near    │    │ • Real-time data    │
+└─────────────────┘    │    SFO"          │    │ • Price comparison  │
+                       │ • Multi-location │    └─────────────────────┘
+                       │ • Constrained    │              │
+                       └──────────────────┘              ▼
+                                                         
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
 │   Refine        │◀───│ Create           │◀───│ Travel Options      │
 │   Itinerary     │    │ Itinerary        │    │ Results             │
@@ -181,9 +199,12 @@ python example_usage.py
 python example_usage.py interactive
 ```
 
-### Testing Travel Tools
+### Testing Components
 
 ```bash
+# Test Destination Research Agent
+python test_destination_agent.py
+
 # Test real APIs
 python test_real_apis.py
 

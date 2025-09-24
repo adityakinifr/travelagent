@@ -12,6 +12,7 @@ from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from real_travel_apis import search_flights_real_api, search_hotels_real_api
+from destination_agent import DestinationResearchAgent, DestinationResearchResult
 
 # Load environment variables
 load_dotenv()
@@ -45,6 +46,7 @@ class AgentState(TypedDict):
     """State for the travel agent"""
     messages: Annotated[List, add_messages]
     trip_spec: TripSpecification
+    destination_research: DestinationResearchResult
     itinerary: TripItinerary
     flight_options: List[Dict]
     hotel_options: List[Dict]
@@ -55,6 +57,7 @@ class TravelAgent:
     def __init__(self, model_name: str = "gpt-4o-mini"):
         """Initialize the travel agent with OpenAI model"""
         self.llm = ChatOpenAI(model=model_name, temperature=0.7)
+        self.destination_agent = DestinationResearchAgent(model_name)
         self.tools = self._create_tools()
         self.graph = self._build_graph()
     
@@ -139,25 +142,25 @@ class TravelAgent:
         return state
     
     def _research_destination(self, state: AgentState) -> AgentState:
-        """Research the destination and gather relevant information"""
+        """Research the destination using the specialized destination agent"""
         trip_spec = state["trip_spec"]
         
-        prompt = f"""
-        Research the destination: {trip_spec.destination}
-        
-        Provide information about:
-        1. Best time to visit
-        2. Top attractions and landmarks
-        3. Local cuisine and restaurants
-        4. Transportation options
-        5. Cultural highlights
-        6. Budget considerations
-        
-        Focus on information relevant to a {trip_spec.duration} trip with interests in: {', '.join(trip_spec.interests)}
+        # Create a comprehensive request for the destination agent
+        destination_request = f"""
+        Destination: {trip_spec.destination}
+        Duration: {trip_spec.duration}
+        Budget: {trip_spec.budget}
+        Interests: {', '.join(trip_spec.interests)}
+        Travel Style: {trip_spec.travel_style}
+        Accommodation Preference: {trip_spec.accommodation_preference}
         """
         
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        state["messages"].append(AIMessage(content=f"Research completed for {trip_spec.destination}"))
+        # Use the destination research agent
+        destination_research = self.destination_agent.research_destination(destination_request)
+        
+        # Store the research results in state
+        state["destination_research"] = destination_research
+        state["messages"].append(AIMessage(content=f"Destination research completed for {trip_spec.destination}"))
         
         return state
     
@@ -300,6 +303,7 @@ class TravelAgent:
         initial_state = {
             "messages": [HumanMessage(content=user_request)],
             "trip_spec": None,
+            "destination_research": None,
             "itinerary": None,
             "flight_options": [],
             "hotel_options": []
@@ -310,6 +314,7 @@ class TravelAgent:
         
         return {
             "trip_specification": final_state["trip_spec"],
+            "destination_research": final_state.get("destination_research"),
             "itinerary": final_state["itinerary"],
             "flight_options": final_state.get("flight_options", []),
             "hotel_options": final_state.get("hotel_options", []),
