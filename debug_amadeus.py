@@ -203,6 +203,75 @@ def test_hotel_search():
     
     return True
 
+def test_car_rental_search():
+    """Test car rental search"""
+    amadeus_key = os.getenv("AMADEUS_API_KEY")
+    amadeus_secret = os.getenv("AMADEUS_API_SECRET")
+    
+    if not amadeus_key or not amadeus_secret:
+        print("❌ Amadeus API credentials not configured")
+        return False
+    
+    try:
+        amadeus = Client(
+            client_id=amadeus_key,
+            client_secret=amadeus_secret,
+            hostname='test'
+        )
+        
+        dates = get_test_dates()
+        print("\n🔍 Testing car rental search...")
+        print(f"Searching car rentals in Paris from {dates['departure_date']} to {dates['return_date']}")
+        
+        # Note: Amadeus doesn't have a dedicated car rental API
+        # It only has Transfer Search API for transportation
+        print("ℹ️  Note: Amadeus doesn't provide car rental API")
+        print("ℹ️  Using realistic mock data based on location and dates")
+        
+        # Calculate rental days
+        pickup_date = datetime.strptime(dates['departure_date'], '%Y-%m-%d')
+        return_date = datetime.strptime(dates['return_date'], '%Y-%m-%d')
+        rental_days = (return_date - pickup_date).days
+        
+        # Generate realistic car rental data for Paris
+        base_price = 50  # European city pricing
+        mock_cars = [
+            {
+                "company": "Hertz",
+                "car_type": "Economy Car",
+                "price_per_day": f"USD {base_price}",
+                "total_price": f"USD {base_price * rental_days}",
+                "features": ["Automatic", "AC", "4 doors", "Unlimited mileage"]
+            },
+            {
+                "company": "Avis",
+                "car_type": "Mid-size SUV",
+                "price_per_day": f"USD {base_price + 30}",
+                "total_price": f"USD {(base_price + 30) * rental_days}",
+                "features": ["Automatic", "AC", "GPS", "Bluetooth", "4WD"]
+            },
+            {
+                "company": "Enterprise",
+                "car_type": "Compact Car",
+                "price_per_day": f"USD {base_price - 5}",
+                "total_price": f"USD {(base_price - 5) * rental_days}",
+                "features": ["Manual", "AC", "4 doors", "Fuel efficient"]
+            }
+        ]
+        
+        print(f"✅ Generated {len(mock_cars)} realistic car rental options for Paris")
+        for i, car in enumerate(mock_cars, 1):
+            print(f"{i}. {car['company']} - {car['car_type']}")
+            print(f"   Price: {car['price_per_day']}/day (Total: {car['total_price']})")
+            print(f"   Features: {', '.join(car['features'][:3])}")
+            print()
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
+        return False
+
 def main():
     """Run all tests"""
     print("🚀 Amadeus API Debug Tool")
@@ -229,6 +298,10 @@ def main():
     # Test hotel search
     if not test_hotel_search():
         print("\n❌ Hotel search test failed.")
+    
+    # Test car rental search
+    if not test_car_rental_search():
+        print("\n❌ Car rental search test failed.")
     
     print("\n✅ Debug tests completed!")
 
