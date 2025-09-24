@@ -3,6 +3,7 @@ Destination Research Agent for handling specific and abstract destination reques
 """
 
 import os
+import requests
 from typing import Dict, List, Optional, Union
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -59,6 +60,57 @@ class DestinationResearchAgent:
             temperature=0.3,
             api_key=os.getenv("OPENAI_API_KEY")
         )
+        self.serpapi_key = os.getenv("SERPAPI_KEY")
+    
+    def search_web(self, query: str, num_results: int = 5) -> List[str]:
+        """Search the web for current information about destinations"""
+        if not self.serpapi_key:
+            print("SerpAPI key not configured - using LLM knowledge only")
+            return []
+        
+        try:
+            url = "https://serpapi.com/search"
+            params = {
+                "q": query,
+                "api_key": self.serpapi_key,
+                "num": num_results,
+                "engine": "google"
+            }
+            
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            results = []
+            
+            if "organic_results" in data:
+                for result in data["organic_results"][:num_results]:
+                    title = result.get("title", "")
+                    snippet = result.get("snippet", "")
+                    link = result.get("link", "")
+                    results.append(f"Title: {title}\nSnippet: {snippet}\nSource: {link}")
+            
+            return results
+            
+        except Exception as e:
+            print(f"Web search error: {e}")
+            return []
+    
+    def get_current_travel_info(self, destination: str) -> str:
+        """Get current travel information for a destination"""
+        web_queries = [
+            f"{destination} travel guide 2024",
+            f"{destination} best time to visit current",
+            f"{destination} travel requirements visa 2024",
+            f"{destination} safety travel advisory current"
+        ]
+        
+        web_results = []
+        for query in web_queries:
+            results = self.search_web(query, num_results=2)
+            web_results.extend(results)
+        
+        return "\n\n".join(web_results) if web_results else ""
     
     def analyze_request_type(self, user_request: str) -> str:
         """Analyze the type of destination request"""
