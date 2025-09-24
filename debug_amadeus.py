@@ -223,20 +223,11 @@ def main():
     amadeus_secret = os.getenv("AMADEUS_API_SECRET")
     serpapi_key = os.getenv("SERPAPI_KEY")
     flightsapi_key = os.getenv("FLIGHTSAPI_KEY")
-    booking_api_key = os.getenv("BOOKING_API_KEY")
-    booking_affiliate_id = os.getenv("BOOKING_AFFILIATE_ID")
-    cartrawler_key = os.getenv("CARTRAWLER_API_KEY")
-    rentalcars_key = os.getenv("RENTALCARS_API_KEY")
-    
     print("API Key Status:")
     print(f"  Amadeus API Key: {'✓ Configured' if amadeus_key else '✗ Not configured'}")
     print(f"  Amadeus API Secret: {'✓ Configured' if amadeus_secret else '✗ Not configured'}")
     print(f"  SerpAPI Key: {'✓ Configured' if serpapi_key else '✗ Not configured'}")
     print(f"  FlightsAPI Key: {'✓ Configured' if flightsapi_key else '✗ Not configured'}")
-    print(f"  Booking.com API Key: {'✓ Configured' if booking_api_key else '✗ Not configured'}")
-    print(f"  Booking.com Affiliate ID: {'✓ Configured' if booking_affiliate_id else '✗ Not configured'}")
-    print(f"  CarTrawler API Key: {'✓ Configured' if cartrawler_key else '✗ Not configured'}")
-    print(f"  Rentalcars.com API Key: {'✓ Configured' if rentalcars_key else '✗ Not configured'}")
     print()
     
     # Test connection
@@ -252,9 +243,6 @@ def main():
     if not test_hotel_search():
         print("\n❌ Hotel search test failed.")
     
-    # Test car rental search
-    if not test_car_rental_search():
-        print("\n❌ Car rental search test failed.")
     
     print("\n✅ Debug tests completed!")
 

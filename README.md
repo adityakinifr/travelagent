@@ -10,7 +10,7 @@ A simple LangGraph agent that takes user trip specifications and creates detaile
 - **Detailed Itineraries**: Creates day-by-day itineraries with activities, meals, and costs
 - **Budget-Aware**: Considers budget constraints in itinerary planning
 - **Flexible Input**: Accepts natural language trip descriptions
-- **Real Travel Data**: Integrates with flight, hotel, and car rental search tools
+- **Real Travel Data**: Integrates with flight and hotel search tools
 - **Multi-Provider Search**: Searches multiple travel providers for best options
 
 ## Architecture
@@ -19,7 +19,7 @@ The agent uses a LangGraph workflow with the following nodes:
 
 1. **Parse Request**: Extracts structured information from natural language input
 2. **Research Destination**: Gathers relevant information about the destination
-3. **Search Travel Options**: Searches for flights, hotels, and car rentals
+3. **Search Travel Options**: Searches for flights and hotels
 4. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
 5. **Refine Itinerary**: Reviews and improves the itinerary
 
@@ -76,13 +76,10 @@ The agent includes integrated tools for searching real travel options:
 - **Amadeus API**: Real-time hotel availability and pricing
 - **Features**: Live rates, availability, amenities, ratings, location details
 
-### Car Rental Search APIs
-- **Amadeus API**: Real-time car rental options
-- **Features**: Live availability, pricing, vehicle types, pickup locations
 
 ### API Configuration
 The system supports multiple API providers with automatic fallback:
-1. **Primary**: Amadeus API (recommended - covers all travel types)
+1. **Primary**: Amadeus API (recommended - covers flights and hotels)
    - **Uses TEST environment by default** (not production)
    - Safe for development and testing
 2. **Fallback**: SerpAPI for flights if Amadeus unavailable
@@ -93,13 +90,13 @@ The system supports multiple API providers with automatic fallback:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Travel Agent Core                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│  │   Flights   │  │   Hotels    │  │ Car Rentals │            │
-│  │   Search    │  │   Search    │  │   Search    │            │
-│  └─────────────┘  └─────────────┘  └─────────────┘            │
+│  ┌─────────────┐  ┌─────────────┐                              │
+│  │   Flights   │  │   Hotels    │                              │
+│  │   Search    │  │   Search    │                              │
+│  └─────────────┘  └─────────────┘                              │
 └─────────────────────────────────────────────────────────────────┘
-           │                │                │
-           ▼                ▼                ▼
+           │                │
+           ▼                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    API Layer                                    │
 │                                                                 │
@@ -109,7 +106,7 @@ The system supports multiple API providers with automatic fallback:
 │  │             │    │  Flights)   │    │             │        │
 │  │ • Flights   │    │             │    │             │        │
 │  │ • Hotels    │    │ • Flights   │    │ • Flights   │        │
-│  │ • Cars      │    │ • Real-time │    │ • Global    │        │
+│  │             │    │ • Real-time │    │ • Global    │        │
 │  │ • Test env  │    │ • Google    │    │ • 500+      │        │
 │  │             │    │   data      │    │   airlines  │        │
 │  └─────────────┘    └─────────────┘    └─────────────┘        │
