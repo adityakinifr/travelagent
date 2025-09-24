@@ -168,30 +168,41 @@ class DestinationResearchAgent:
     
     def research_specific_destination(self, request: DestinationRequest) -> DestinationResearchResult:
         """Research a specific destination mentioned by the user"""
+        
+        # Get current web information
+        current_info = self.get_current_travel_info(request.query)
+        
         prompt = f"""
         Research the destination: {request.query}
         
-        Provide comprehensive information about this destination including:
-        - Best time to visit
+        Use your knowledge and the current information provided below to give comprehensive details about this destination.
+        
+        Current Web Information:
+        {current_info if current_info else "No current web information available - rely on your knowledge"}
+        
+        Provide detailed information about:
+        - Best time to visit (consider current year 2024)
         - Key attractions and activities
-        - Climate and weather
-        - Visa requirements
+        - Climate and weather patterns
+        - Visa requirements and entry procedures
         - Language and currency
-        - Safety considerations
-        - Estimated costs
+        - Safety considerations and travel advisories
+        - Estimated costs for different budget levels
+        - Local transportation options
+        - Cultural highlights and experiences
         - Why it's recommended for travel
         
-        If origin_location is provided ({request.origin_location}), include travel time and options.
+        If origin_location is provided ({request.origin_location}), include travel time and transportation options.
         If budget is specified ({request.budget}), tailor recommendations accordingly.
-        If interests are mentioned ({request.interests}), focus on relevant attractions.
+        If interests are mentioned ({request.interests}), focus on relevant attractions and activities.
         
-        Format as a detailed destination profile.
+        Provide a comprehensive, up-to-date destination profile based on your knowledge and current information.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
         
-        # Parse the response into structured data
-        destination = self._parse_destination_response(response.content, request.query)
+        # Create structured destination data from LLM response
+        destination = self._create_destination_from_llm_response(response.content, request.query)
         
         return DestinationResearchResult(
             request_type="specific",
@@ -202,6 +213,11 @@ class DestinationResearchAgent:
     
     def research_abstract_destination(self, request: DestinationRequest) -> DestinationResearchResult:
         """Research destinations based on abstract criteria"""
+        
+        # Search for current information about destinations matching criteria
+        search_query = f"{request.query} destinations {request.origin_location or ''} {request.max_travel_time or ''}"
+        current_info = self.search_web(search_query, num_results=3)
+        
         prompt = f"""
         Find destinations that match these criteria:
         
@@ -212,23 +228,28 @@ class DestinationResearchAgent:
         Interests: {request.interests or 'Not specified'}
         Travel style: {request.travel_style or 'Not specified'}
         
-        Provide 3-5 destination recommendations that match the criteria.
+        Current Web Information:
+        {chr(10).join(current_info) if current_info else "No current web information available - rely on your knowledge"}
+        
+        Use your knowledge and current information to provide 3-5 destination recommendations that match the criteria.
         For each destination, include:
         - Name and location
         - Why it matches the criteria
-        - Best time to visit
-        - Key attractions
+        - Best time to visit (consider current year 2024)
+        - Key attractions and activities
         - Travel time from origin (if specified)
-        - Estimated costs
-        - Climate and activities
+        - Estimated costs for different budget levels
+        - Climate and weather
+        - Safety considerations
+        - Unique selling points
         
-        Rank them by how well they match the criteria.
+        Rank them by how well they match the criteria and provide detailed reasoning for each recommendation.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
         
-        # Parse multiple destinations from response
-        destinations = self._parse_multiple_destinations(response.content)
+        # Create structured destinations from LLM response
+        destinations = self._create_multiple_destinations_from_llm(response.content)
         
         return DestinationResearchResult(
             request_type="abstract",
@@ -239,26 +260,35 @@ class DestinationResearchAgent:
     
     def research_multi_location(self, request: DestinationRequest) -> DestinationResearchResult:
         """Research multiple destinations or provide comparisons"""
+        
+        # Get current information for comparison
+        current_info = self.get_current_travel_info(request.query)
+        
         prompt = f"""
         Analyze this multi-location travel request: {request.query}
         
-        If multiple specific destinations are mentioned, provide detailed comparison.
+        Current Web Information:
+        {current_info if current_info else "No current web information available - rely on your knowledge"}
+        
+        If multiple specific destinations are mentioned, provide detailed comparison using current information.
         If the user wants to choose between options, provide pros/cons for each.
         
         For each destination, include:
         - Overview and highlights
-        - Best time to visit
+        - Best time to visit (consider current year 2024)
         - Key attractions and activities
         - Travel logistics (if origin specified)
         - Costs and budget considerations
+        - Safety and current travel conditions
         - Unique selling points
+        - Current travel requirements and advisories
         
-        Provide a comparison summary highlighting differences and recommendations.
+        Provide a comprehensive comparison summary highlighting differences, current conditions, and recommendations.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
         
-        destinations = self._parse_multiple_destinations(response.content)
+        destinations = self._create_multiple_destinations_from_llm(response.content)
         
         return DestinationResearchResult(
             request_type="multi_location",
@@ -270,6 +300,11 @@ class DestinationResearchAgent:
     
     def research_constrained_destination(self, request: DestinationRequest) -> DestinationResearchResult:
         """Research destinations with specific constraints"""
+        
+        # Search for destinations meeting specific constraints
+        search_query = f"destinations within {request.max_travel_time} of {request.origin_location} {request.interests}"
+        current_info = self.search_web(search_query, num_results=3)
+        
         prompt = f"""
         Find destinations that meet these specific constraints:
         
@@ -279,18 +314,27 @@ class DestinationResearchAgent:
         Interests: {request.interests or 'General travel'}
         Travel style: {request.travel_style or 'Not specified'}
         
+        Current Web Information:
+        {chr(10).join(current_info) if current_info else "No current web information available - rely on your knowledge"}
+        
         Focus on destinations that are:
         1. Within the specified travel time from origin
         2. Match the budget constraints
         3. Align with interests and travel style
+        4. Currently accessible and safe to visit
         
-        Provide 3-5 options ranked by how well they meet the constraints.
-        Include travel time, costs, and why each destination fits the criteria.
+        Use your knowledge and current information to provide 3-5 options ranked by how well they meet the constraints.
+        Include:
+        - Exact travel time from origin
+        - Current costs and budget considerations
+        - Why each destination fits the criteria
+        - Current travel conditions and requirements
+        - Best time to visit considering constraints
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
         
-        destinations = self._parse_multiple_destinations(response.content)
+        destinations = self._create_multiple_destinations_from_llm(response.content)
         
         return DestinationResearchResult(
             request_type="constrained",
@@ -320,56 +364,125 @@ class DestinationResearchAgent:
             # Default to abstract research
             return self.research_abstract_destination(request_params)
     
-    def _parse_destination_response(self, response: str, destination_name: str) -> DestinationOption:
-        """Parse LLM response into structured destination data"""
-        # This is a simplified parser - in production, you'd want more robust parsing
-        return DestinationOption(
-            name=destination_name,
-            country="Unknown",
-            region="Unknown",
-            description=response[:200] + "..." if len(response) > 200 else response,
-            best_time_to_visit="Year-round",
-            key_attractions=["Various attractions"],
-            activities=["Various activities"],
-            climate="Varies",
-            visa_requirements="Check with embassy",
-            language="Local language",
-            currency="Local currency",
-            safety_rating="Good",
-            why_recommended="See description"
-        )
+    def _create_destination_from_llm_response(self, response: str, destination_name: str) -> DestinationOption:
+        """Create structured destination data from LLM response"""
+        
+        # Use LLM to extract structured information
+        extraction_prompt = f"""
+        Extract structured information from this destination research response:
+        
+        Destination: {destination_name}
+        Response: {response}
+        
+        Extract and return a JSON object with these fields:
+        {{
+            "name": "{destination_name}",
+            "country": "Country name",
+            "region": "Region/state/province",
+            "description": "Brief description (max 200 chars)",
+            "best_time_to_visit": "Best time to visit",
+            "key_attractions": ["List of top 3-5 attractions"],
+            "activities": ["List of top 3-5 activities"],
+            "climate": "Climate description",
+            "visa_requirements": "Visa requirements",
+            "language": "Primary language",
+            "currency": "Local currency",
+            "safety_rating": "Safety rating/considerations",
+            "why_recommended": "Why this destination is recommended"
+        }}
+        
+        Base the information on the response content. If information is not available, use reasonable defaults.
+        """
+        
+        try:
+            extraction_response = self.llm.invoke([HumanMessage(content=extraction_prompt)])
+            import json
+            data = json.loads(extraction_response.content)
+            return DestinationOption(**data)
+        except:
+            # Fallback to basic parsing
+            return DestinationOption(
+                name=destination_name,
+                country="Unknown",
+                region="Unknown",
+                description=response[:200] + "..." if len(response) > 200 else response,
+                best_time_to_visit="Year-round",
+                key_attractions=["Various attractions"],
+                activities=["Various activities"],
+                climate="Varies",
+                visa_requirements="Check with embassy",
+                language="Local language",
+                currency="Local currency",
+                safety_rating="Good",
+                why_recommended="See description"
+            )
     
-    def _parse_multiple_destinations(self, response: str) -> List[DestinationOption]:
-        """Parse multiple destinations from LLM response"""
-        # Simplified parsing - in production, use more sophisticated parsing
-        destinations = []
-        lines = response.split('\n')
-        current_dest = None
+    def _create_multiple_destinations_from_llm(self, response: str) -> List[DestinationOption]:
+        """Create multiple destinations from LLM response using structured extraction"""
         
-        for line in lines:
-            if line.strip() and not line.startswith(' '):
-                if current_dest:
-                    destinations.append(current_dest)
-                current_dest = DestinationOption(
-                    name=line.strip(),
-                    country="Unknown",
-                    region="Unknown",
-                    description="See full response",
-                    best_time_to_visit="Year-round",
-                    key_attractions=[],
-                    activities=[],
-                    climate="Varies",
-                    visa_requirements="Check with embassy",
-                    language="Local language",
-                    currency="Local currency",
-                    safety_rating="Good",
-                    why_recommended="See full response"
-                )
+        # Use LLM to extract multiple destinations
+        extraction_prompt = f"""
+        Extract multiple destinations from this research response:
         
-        if current_dest:
-            destinations.append(current_dest)
+        Response: {response}
         
-        return destinations[:5]  # Limit to 5 destinations
+        Return a JSON array of destination objects. Each object should have these fields:
+        {{
+            "name": "Destination name",
+            "country": "Country name",
+            "region": "Region/state/province",
+            "description": "Brief description (max 150 chars)",
+            "best_time_to_visit": "Best time to visit",
+            "key_attractions": ["List of top 3 attractions"],
+            "activities": ["List of top 3 activities"],
+            "climate": "Climate description",
+            "visa_requirements": "Visa requirements",
+            "language": "Primary language",
+            "currency": "Local currency",
+            "safety_rating": "Safety rating/considerations",
+            "why_recommended": "Why this destination is recommended"
+        }}
+        
+        Extract all destinations mentioned in the response. If information is not available for a field, use reasonable defaults.
+        Return as a JSON array.
+        """
+        
+        try:
+            extraction_response = self.llm.invoke([HumanMessage(content=extraction_prompt)])
+            import json
+            destinations_data = json.loads(extraction_response.content)
+            destinations = [DestinationOption(**dest) for dest in destinations_data]
+            return destinations[:5]  # Limit to 5 destinations
+        except:
+            # Fallback to basic parsing
+            destinations = []
+            lines = response.split('\n')
+            current_dest = None
+            
+            for line in lines:
+                if line.strip() and not line.startswith(' '):
+                    if current_dest:
+                        destinations.append(current_dest)
+                    current_dest = DestinationOption(
+                        name=line.strip(),
+                        country="Unknown",
+                        region="Unknown",
+                        description="See full response",
+                        best_time_to_visit="Year-round",
+                        key_attractions=[],
+                        activities=[],
+                        climate="Varies",
+                        visa_requirements="Check with embassy",
+                        language="Local language",
+                        currency="Local currency",
+                        safety_rating="Good",
+                        why_recommended="See full response"
+                    )
+            
+            if current_dest:
+                destinations.append(current_dest)
+            
+            return destinations[:5]  # Limit to 5 destinations
     
     def _extract_comparison_summary(self, response: str) -> str:
         """Extract comparison summary from response"""

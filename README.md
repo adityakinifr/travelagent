@@ -37,8 +37,11 @@ A specialized agent that handles various types of destination requests:
 **Capabilities:**
 - Analyzes request type automatically
 - Extracts travel parameters (budget, interests, constraints)
-- Provides comprehensive destination research
+- Uses LLM knowledge for comprehensive destination research
+- Integrates real-time web search for current information
+- Provides up-to-date travel requirements and advisories
 - Offers multiple destination options with comparisons
+- Extracts structured data from natural language responses
 
 ### Workflow Diagram
 
@@ -93,6 +96,12 @@ The agent includes integrated tools for searching real travel options:
 ### Hotel Search APIs
 - **Amadeus API**: Real-time hotel availability and pricing
 - **Features**: Live rates, availability, amenities, ratings, location details
+
+### Destination Research Integration
+- **LLM Knowledge**: Leverages GPT's comprehensive travel knowledge
+- **Web Search**: Real-time information via SerpAPI integration
+- **Current Data**: Up-to-date travel requirements, advisories, and conditions
+- **Structured Extraction**: Converts natural language to structured data
 
 
 ### API Configuration

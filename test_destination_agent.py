@@ -17,6 +17,11 @@ def test_destination_agent():
         print("Please set your OPENAI_API_KEY environment variable")
         return
     
+    # Check SerpAPI key status
+    serpapi_key = os.getenv("SERPAPI_KEY")
+    print(f"SerpAPI Key: {'✓ Configured' if serpapi_key else '✗ Not configured (will use LLM knowledge only)'}")
+    print()
+    
     # Initialize the destination agent
     agent = DestinationResearchAgent()
     
@@ -95,6 +100,31 @@ def test_request_analysis():
         print(f"Type: {request_type}")
         print("-" * 40)
 
+def test_web_search():
+    """Test web search functionality"""
+    agent = DestinationResearchAgent()
+    
+    print("\n🌐 Testing Web Search Functionality")
+    print("=" * 40)
+    
+    test_queries = [
+        "Paris travel guide 2024",
+        "best beach destinations near California",
+        "Tokyo vs Seoul travel comparison"
+    ]
+    
+    for query in test_queries:
+        print(f"\nSearching: {query}")
+        results = agent.search_web(query, num_results=2)
+        
+        if results:
+            print(f"✅ Found {len(results)} results")
+            for i, result in enumerate(results, 1):
+                print(f"{i}. {result[:100]}...")
+        else:
+            print("❌ No results found (SerpAPI may not be configured)")
+
 if __name__ == "__main__":
     test_destination_agent()
     test_request_analysis()
+    test_web_search()
