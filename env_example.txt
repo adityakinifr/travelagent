@@ -6,3 +6,4 @@ AMADEUS_API_KEY=your_amadeus_test_api_key_here
 AMADEUS_API_SECRET=your_amadeus_test_api_secret_here
 SERPAPI_KEY=your_serpapi_key_here
 FLIGHTSAPI_KEY=your_flightsapi_key_here
+

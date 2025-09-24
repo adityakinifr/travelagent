@@ -11,7 +11,7 @@ from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel
-from real_travel_apis import search_flights_real_api, search_hotels_real_api, search_car_rentals_real_api
+from real_travel_apis import search_flights_real_api, search_hotels_real_api
 
 # Load environment variables
 load_dotenv()
@@ -48,7 +48,6 @@ class AgentState(TypedDict):
     itinerary: TripItinerary
     flight_options: List[Dict]
     hotel_options: List[Dict]
-    car_rental_options: List[Dict]
 
 class TravelAgent:
     """LangGraph Travel Agent for creating trip itineraries"""
@@ -76,14 +75,7 @@ class TravelAgent:
             return search_hotels_real_api(destination, check_in, check_out, 
                                         guests, rooms)
         
-        @tool
-        def search_car_rentals(pickup_location: str, pickup_date: str, return_date: str,
-                              pickup_time: str = "10:00", return_time: str = "10:00") -> str:
-            """Search for car rentals from multiple providers using real APIs"""
-            return search_car_rentals_real_api(pickup_location, pickup_date, return_date,
-                                             pickup_time, return_time)
-        
-        return [search_flights, search_hotels, search_car_rentals]
+        return [search_flights, search_hotels]
     
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow"""
@@ -198,16 +190,8 @@ class TravelAgent:
             rooms=1
         )
         
-        # Search car rentals
-        car_rental_results = search_car_rentals_real_api(
-            pickup_location=trip_spec.destination,
-            pickup_date=departure_date,
-            return_date=return_date
-        )
-        
         state["flight_options"] = [{"results": flight_results}]
         state["hotel_options"] = [{"results": hotel_results}]
-        state["car_rental_options"] = [{"results": car_rental_results}]
         
         state["messages"].append(AIMessage(content=f"Found travel options for {trip_spec.destination}"))
         
@@ -220,7 +204,6 @@ class TravelAgent:
         # Get travel options
         flight_options = state.get("flight_options", [])
         hotel_options = state.get("hotel_options", [])
-        car_rental_options = state.get("car_rental_options", [])
         
         # Build travel options summary
         travel_summary = ""
@@ -228,8 +211,6 @@ class TravelAgent:
             travel_summary += f"\nFlight Options:\n{flight_options[0].get('results', 'No flights found')}\n"
         if hotel_options:
             travel_summary += f"\nHotel Options:\n{hotel_options[0].get('results', 'No hotels found')}\n"
-        if car_rental_options:
-            travel_summary += f"\nCar Rental Options:\n{car_rental_options[0].get('results', 'No car rentals found')}\n"
         
         prompt = f"""
         Create a detailed {trip_spec.duration} itinerary for {trip_spec.destination}.
@@ -252,7 +233,7 @@ class TravelAgent:
         4. Meal recommendations
         5. Transportation between locations
         6. Estimated costs for the day
-        7. Recommended flights, hotels, and car rentals from the options above
+        7. Recommended flights and hotels from the options above
         
         Make the itinerary realistic and enjoyable, considering travel time between locations.
         Use the actual travel options provided to make specific recommendations.
@@ -321,8 +302,7 @@ class TravelAgent:
             "trip_spec": None,
             "itinerary": None,
             "flight_options": [],
-            "hotel_options": [],
-            "car_rental_options": []
+            "hotel_options": []
         }
         
         # Run the graph
@@ -333,7 +313,6 @@ class TravelAgent:
             "itinerary": final_state["itinerary"],
             "flight_options": final_state.get("flight_options", []),
             "hotel_options": final_state.get("hotel_options", []),
-            "car_rental_options": final_state.get("car_rental_options", []),
             "conversation": final_state["messages"]
         }
 

@@ -203,74 +203,6 @@ def test_hotel_search():
     
     return True
 
-def test_car_rental_search():
-    """Test car rental search"""
-    amadeus_key = os.getenv("AMADEUS_API_KEY")
-    amadeus_secret = os.getenv("AMADEUS_API_SECRET")
-    
-    if not amadeus_key or not amadeus_secret:
-        print("❌ Amadeus API credentials not configured")
-        return False
-    
-    try:
-        amadeus = Client(
-            client_id=amadeus_key,
-            client_secret=amadeus_secret,
-            hostname='test'
-        )
-        
-        dates = get_test_dates()
-        print("\n🔍 Testing car rental search...")
-        print(f"Searching car rentals in Paris from {dates['departure_date']} to {dates['return_date']}")
-        
-        # Note: Amadeus doesn't have a dedicated car rental API
-        # It only has Transfer Search API for transportation
-        print("ℹ️  Note: Amadeus doesn't provide car rental API")
-        print("ℹ️  Using realistic mock data based on location and dates")
-        
-        # Calculate rental days
-        pickup_date = datetime.strptime(dates['departure_date'], '%Y-%m-%d')
-        return_date = datetime.strptime(dates['return_date'], '%Y-%m-%d')
-        rental_days = (return_date - pickup_date).days
-        
-        # Generate realistic car rental data for Paris
-        base_price = 50  # European city pricing
-        mock_cars = [
-            {
-                "company": "Hertz",
-                "car_type": "Economy Car",
-                "price_per_day": f"USD {base_price}",
-                "total_price": f"USD {base_price * rental_days}",
-                "features": ["Automatic", "AC", "4 doors", "Unlimited mileage"]
-            },
-            {
-                "company": "Avis",
-                "car_type": "Mid-size SUV",
-                "price_per_day": f"USD {base_price + 30}",
-                "total_price": f"USD {(base_price + 30) * rental_days}",
-                "features": ["Automatic", "AC", "GPS", "Bluetooth", "4WD"]
-            },
-            {
-                "company": "Enterprise",
-                "car_type": "Compact Car",
-                "price_per_day": f"USD {base_price - 5}",
-                "total_price": f"USD {(base_price - 5) * rental_days}",
-                "features": ["Manual", "AC", "4 doors", "Fuel efficient"]
-            }
-        ]
-        
-        print(f"✅ Generated {len(mock_cars)} realistic car rental options for Paris")
-        for i, car in enumerate(mock_cars, 1):
-            print(f"{i}. {car['company']} - {car['car_type']}")
-            print(f"   Price: {car['price_per_day']}/day (Total: {car['total_price']})")
-            print(f"   Features: {', '.join(car['features'][:3])}")
-            print()
-        
-        return True
-        
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
-        return False
 
 def main():
     """Run all tests"""
@@ -284,6 +216,27 @@ def main():
     print(f"Testing with return: {dates['return_date']} (37 days from today)")
     print(f"Hotel check-in: {dates['check_in']}")
     print(f"Hotel check-out: {dates['check_out']}")
+    print()
+    
+    # Check API key status
+    amadeus_key = os.getenv("AMADEUS_API_KEY")
+    amadeus_secret = os.getenv("AMADEUS_API_SECRET")
+    serpapi_key = os.getenv("SERPAPI_KEY")
+    flightsapi_key = os.getenv("FLIGHTSAPI_KEY")
+    booking_api_key = os.getenv("BOOKING_API_KEY")
+    booking_affiliate_id = os.getenv("BOOKING_AFFILIATE_ID")
+    cartrawler_key = os.getenv("CARTRAWLER_API_KEY")
+    rentalcars_key = os.getenv("RENTALCARS_API_KEY")
+    
+    print("API Key Status:")
+    print(f"  Amadeus API Key: {'✓ Configured' if amadeus_key else '✗ Not configured'}")
+    print(f"  Amadeus API Secret: {'✓ Configured' if amadeus_secret else '✗ Not configured'}")
+    print(f"  SerpAPI Key: {'✓ Configured' if serpapi_key else '✗ Not configured'}")
+    print(f"  FlightsAPI Key: {'✓ Configured' if flightsapi_key else '✗ Not configured'}")
+    print(f"  Booking.com API Key: {'✓ Configured' if booking_api_key else '✗ Not configured'}")
+    print(f"  Booking.com Affiliate ID: {'✓ Configured' if booking_affiliate_id else '✗ Not configured'}")
+    print(f"  CarTrawler API Key: {'✓ Configured' if cartrawler_key else '✗ Not configured'}")
+    print(f"  Rentalcars.com API Key: {'✓ Configured' if rentalcars_key else '✗ Not configured'}")
     print()
     
     # Test connection

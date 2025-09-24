@@ -56,24 +56,6 @@ class HotelResult(BaseModel):
     availability: bool
     currency: str = "USD"
 
-class CarRentalSearch(BaseModel):
-    """Car rental search parameters"""
-    pickup_location: str
-    pickup_date: str
-    return_date: str
-    pickup_time: str = "10:00"
-    return_time: str = "10:00"
-
-class CarRentalResult(BaseModel):
-    """Car rental search result"""
-    company: str
-    car_type: str
-    price_per_day: str
-    total_price: str
-    pickup_location: str
-    features: List[str]
-    availability: bool
-    currency: str = "USD"
 
 class RealTravelAPIs:
     """Real API implementations for travel data"""
@@ -455,87 +437,6 @@ class RealTravelAPIs:
             print(f"Error searching hotels with Amadeus: {e}")
             return []
     
-    def search_car_rentals_amadeus(self, search: CarRentalSearch) -> List[CarRentalResult]:
-        """Search car rentals using Amadeus Transfer API (closest available option)"""
-        if not self.amadeus_client:
-            print("Amadeus API credentials not configured")
-            return []
-        
-        try:
-            # Convert pickup location to IATA code
-            pickup_code = self._get_location_code(search.pickup_location)
-            print(f"Searching car rentals in: {pickup_code}")
-            
-            # Note: Amadeus doesn't have a dedicated car rental API
-            # It only has Transfer Search API for transportation
-            # We'll use mock data but make it more realistic based on location
-            print("Note: Amadeus doesn't provide car rental API, using realistic mock data")
-            
-            # Generate realistic car rental data based on location
-            base_price = 40
-            if pickup_code in ['NYC', 'LAX', 'SFO']:  # US cities
-                base_price = 45
-            elif pickup_code in ['PAR', 'LON', 'MAD']:  # European cities
-                base_price = 50
-            elif pickup_code in ['NRT', 'ICN', 'SIN']:  # Asian cities
-                base_price = 35
-            
-            # Calculate total price for the rental period
-            pickup_date = datetime.strptime(search.pickup_date, '%Y-%m-%d')
-            return_date = datetime.strptime(search.return_date, '%Y-%m-%d')
-            rental_days = (return_date - pickup_date).days
-            
-            # Mock car rental data with realistic pricing
-            mock_cars = [
-                CarRentalResult(
-                    company="Hertz",
-                    car_type="Economy Car",
-                    price_per_day=f"USD {base_price}",
-                    total_price=f"USD {base_price * rental_days}",
-                    pickup_location=pickup_code,
-                    features=["Automatic", "AC", "4 doors", "Unlimited mileage"],
-                    availability=True,
-                    currency="USD"
-                ),
-                CarRentalResult(
-                    company="Avis",
-                    car_type="Mid-size SUV",
-                    price_per_day=f"USD {base_price + 30}",
-                    total_price=f"USD {(base_price + 30) * rental_days}",
-                    pickup_location=pickup_code,
-                    features=["Automatic", "AC", "GPS", "Bluetooth", "4WD"],
-                    availability=True,
-                    currency="USD"
-                ),
-                CarRentalResult(
-                    company="Enterprise",
-                    car_type="Compact Car",
-                    price_per_day=f"USD {base_price - 5}",
-                    total_price=f"USD {(base_price - 5) * rental_days}",
-                    pickup_location=pickup_code,
-                    features=["Manual", "AC", "4 doors", "Fuel efficient"],
-                    availability=True,
-                    currency="USD"
-                ),
-                CarRentalResult(
-                    company="Budget",
-                    car_type="Luxury Sedan",
-                    price_per_day=f"USD {base_price + 50}",
-                    total_price=f"USD {(base_price + 50) * rental_days}",
-                    pickup_location=pickup_code,
-                    features=["Automatic", "AC", "Leather seats", "Premium sound", "Navigation"],
-                    availability=True,
-                    currency="USD"
-                )
-            ]
-            
-            print(f"✅ Generated {len(mock_cars)} realistic car rental options for {pickup_code}")
-            return mock_cars
-            
-        except Exception as e:
-            print(f"Error searching car rentals with Amadeus: {e}")
-            return []
-    
     def search_all_flights(self, search: FlightSearch) -> List[FlightResult]:
         """Search multiple flight providers and combine results"""
         all_flights = []
@@ -586,25 +487,6 @@ class RealTravelAPIs:
         
         return all_hotels[:10]  # Return top 10 results
     
-    def search_all_car_rentals(self, search: CarRentalSearch) -> List[CarRentalResult]:
-        """Search multiple car rental providers and combine results"""
-        all_cars = []
-        
-        # Use Amadeus for car rentals
-        amadeus_cars = self.search_car_rentals_amadeus(search)
-        all_cars.extend(amadeus_cars)
-        
-        # Sort by price
-        def extract_price(car):
-            try:
-                price_str = car.price_per_day.replace('USD', '').replace('$', '').strip()
-                return float(price_str)
-            except:
-                return float('inf')
-        
-        all_cars.sort(key=extract_price)
-        
-        return all_cars[:10]  # Return top 10 results
 
 # Tool functions for LangChain integration
 def search_flights_real_api(origin: str, destination: str, departure_date: str, 
@@ -665,29 +547,3 @@ def search_hotels_real_api(destination: str, check_in: str, check_out: str,
     
     return result
 
-def search_car_rentals_real_api(pickup_location: str, pickup_date: str, return_date: str,
-                               pickup_time: str = "10:00", return_time: str = "10:00") -> str:
-    """
-    Tool for searching car rentals using real APIs
-    """
-    apis = RealTravelAPIs()
-    search = CarRentalSearch(
-        pickup_location=pickup_location,
-        pickup_date=pickup_date,
-        return_date=return_date,
-        pickup_time=pickup_time,
-        return_time=return_time
-    )
-    
-    cars = apis.search_all_car_rentals(search)
-    
-    if not cars:
-        return "No car rentals found for the given criteria. Please check your search parameters or try again later."
-    
-    result = f"Found {len(cars)} car rental options in {pickup_location}:\n\n"
-    for i, car in enumerate(cars, 1):
-        result += f"{i}. {car.company} - {car.car_type}\n"
-        result += f"   Price: {car.price_per_day}/day (Total: {car.total_price})\n"
-        result += f"   Features: {', '.join(car.features[:3])}{'...' if len(car.features) > 3 else ''}\n\n"
-    
-    return result
