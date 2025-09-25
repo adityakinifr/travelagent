@@ -3,7 +3,7 @@ LangGraph Travel Agent for creating trip itineraries
 """
 
 import os
-from typing import Dict, List, TypedDict, Annotated
+from typing import Dict, List, TypedDict, Annotated, Optional
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
@@ -25,6 +25,7 @@ class TripSpecification(BaseModel):
     interests: List[str]
     travel_style: str
     accommodation_preference: str
+    travel_dates: Optional[str] = None
 
 class ItineraryDay(BaseModel):
     """Structure for a single day in the itinerary"""
@@ -95,7 +96,14 @@ class TravelAgent:
         # Add edges
         workflow.set_entry_point("parse_request")
         workflow.add_edge("parse_request", "research_destination")
-        workflow.add_edge("research_destination", "select_destination")
+        workflow.add_conditional_edges(
+            "research_destination",
+            self._should_continue_after_research,
+            {
+                "continue": "select_destination",
+                "stop": END
+            }
+        )
         workflow.add_edge("select_destination", "search_travel_options")
         workflow.add_edge("search_travel_options", "create_itinerary")
         workflow.add_edge("create_itinerary", "refine_itinerary")
@@ -119,6 +127,7 @@ class TravelAgent:
         - interests: What they're interested in (sightseeing, food, adventure, culture, etc.)
         - travel_style: Their preferred travel style (budget, luxury, backpacking, etc.)
         - accommodation_preference: Type of accommodation they prefer
+        - travel_dates: When they want to travel (e.g., "June 2024", "summer", "next month", "March 15-20, 2024")
         
         If any information is missing, make reasonable assumptions based on the context.
         Return the information in a structured format.
@@ -127,15 +136,106 @@ class TravelAgent:
         response = self.llm.invoke([HumanMessage(content=prompt)])
         
         # Parse the response to create TripSpecification
-        # For simplicity, we'll create a basic structure
-        # In a real implementation, you'd use more sophisticated parsing
+        # For now, we'll use simple parsing - in a real implementation, you'd use more sophisticated parsing
+        content = response.content.lower()
+        
+        # Extract destination
+        destination = "Paris, France"  # Default
+        if "paris" in content:
+            destination = "Paris, France"
+        elif "tokyo" in content:
+            destination = "Tokyo, Japan"
+        elif "london" in content:
+            destination = "London, UK"
+        elif "new york" in content:
+            destination = "New York, USA"
+        
+        # Extract duration
+        duration = "5 days"  # Default
+        if "3 days" in content or "3-day" in content:
+            duration = "3 days"
+        elif "7 days" in content or "week" in content:
+            duration = "7 days"
+        elif "10 days" in content:
+            duration = "10 days"
+        
+        # Extract budget
+        budget = "$2000"  # Default
+        if "$1000" in content or "1000" in content:
+            budget = "$1000"
+        elif "$3000" in content or "3000" in content:
+            budget = "$3000"
+        elif "$5000" in content or "5000" in content:
+            budget = "$5000"
+        
+        # Extract interests
+        interests = ["sightseeing", "food", "culture"]  # Default
+        if "adventure" in content:
+            interests = ["adventure", "outdoor activities"]
+        elif "beach" in content:
+            interests = ["beach", "relaxation"]
+        elif "history" in content:
+            interests = ["history", "museums", "culture"]
+        
+        # Extract travel style
+        travel_style = "comfortable"  # Default
+        if "budget" in content:
+            travel_style = "budget"
+        elif "luxury" in content:
+            travel_style = "luxury"
+        elif "backpacking" in content:
+            travel_style = "backpacking"
+        
+        # Extract accommodation preference
+        accommodation_preference = "hotel"  # Default
+        if "hostel" in content:
+            accommodation_preference = "hostel"
+        elif "airbnb" in content or "apartment" in content:
+            accommodation_preference = "apartment"
+        elif "resort" in content:
+            accommodation_preference = "resort"
+        
+        # Extract travel dates
+        travel_dates = None
+        if "june" in content:
+            travel_dates = "June 2024"
+        elif "july" in content:
+            travel_dates = "July 2024"
+        elif "august" in content:
+            travel_dates = "August 2024"
+        elif "summer" in content:
+            travel_dates = "summer 2024"
+        elif "winter" in content:
+            travel_dates = "winter 2024"
+        elif "spring" in content:
+            travel_dates = "spring 2024"
+        elif "fall" in content or "autumn" in content:
+            travel_dates = "fall 2024"
+        elif "next month" in content:
+            travel_dates = "next month"
+        elif "march" in content:
+            travel_dates = "March 2024"
+        elif "april" in content:
+            travel_dates = "April 2024"
+        elif "may" in content:
+            travel_dates = "May 2024"
+        elif "september" in content:
+            travel_dates = "September 2024"
+        elif "october" in content:
+            travel_dates = "October 2024"
+        elif "november" in content:
+            travel_dates = "November 2024"
+        elif "december" in content:
+            travel_dates = "December 2024"
+        
         trip_spec = TripSpecification(
-            destination="Paris, France",  # Default example
-            duration="5 days",
-            budget="$2000",
-            interests=["sightseeing", "food", "culture"],
-            travel_style="comfortable",
-            accommodation_preference="hotel"
+            destination=destination,
+            duration=duration,
+            budget=budget,
+            interests=interests,
+            travel_style=travel_style,
+            accommodation_preference=accommodation_preference,
+            travel_dates=travel_dates
         )
         
         state["trip_spec"] = trip_spec
@@ -155,6 +255,7 @@ class TravelAgent:
         Interests: {', '.join(trip_spec.interests)}
         Travel Style: {trip_spec.travel_style}
         Accommodation Preference: {trip_spec.accommodation_preference}
+        Travel Dates: {trip_spec.travel_dates or 'Not specified'}
         """
         
         # Use the destination research agent with feasibility checking
@@ -164,11 +265,26 @@ class TravelAgent:
             min_feasibility_score=0.6
         )
         
+        # Check if dates are required
+        if destination_research.date_required:
+            state["destination_research"] = destination_research
+            state["messages"].append(AIMessage(content=destination_research.travel_recommendations))
+            return state
+        
         # Store the research results in state
         state["destination_research"] = destination_research
         state["messages"].append(AIMessage(content=f"Destination research completed for {trip_spec.destination}"))
         
         return state
+    
+    def _should_continue_after_research(self, state: AgentState) -> str:
+        """Determine if the workflow should continue after destination research"""
+        destination_research = state.get("destination_research")
+        
+        if destination_research and destination_research.date_required:
+            return "stop"
+        else:
+            return "continue"
     
     def _select_destination(self, state: AgentState) -> AgentState:
         """Handle destination selection if multiple options are available"""

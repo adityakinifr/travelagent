@@ -67,6 +67,7 @@ class DestinationResearchResult(BaseModel):
     comparison_summary: Optional[str] = None
     user_choice_required: bool = False
     choice_prompt: Optional[str] = None
+    date_required: bool = False
 
 class DestinationResearchAgent:
     """Specialized agent for destination research and recommendation"""
@@ -637,6 +638,12 @@ class DestinationResearchAgent:
             user_choice_required=len(all_destinations) > 1
         )
     
+    def _validate_travel_dates(self, request_params: DestinationRequest) -> Optional[str]:
+        """Check if travel dates are specified and return error message if not"""
+        if not request_params.travel_dates or request_params.travel_dates.strip() == "":
+            return "Travel dates are required to proceed with destination research and feasibility checking. Please specify your travel dates (e.g., 'June 2024', 'summer', 'next month', 'March 15-20, 2024')."
+        return None
+    
     def research_destination(self, user_request: str) -> DestinationResearchResult:
         """Main method to research destinations based on user request"""
         print(f"🔍 Starting destination research for: {user_request}")
@@ -659,6 +666,19 @@ class DestinationResearchAgent:
         print(f"      Mobility: {request_params.mobility_requirements}")
         print(f"      Seasonal: {request_params.seasonal_preferences}")
         print(f"      Travel dates: {request_params.travel_dates}")
+        
+        # Validate travel dates
+        date_error = self._validate_travel_dates(request_params)
+        if date_error:
+            print(f"   ❌ {date_error}")
+            return DestinationResearchResult(
+                request_type=request_type,
+                primary_destinations=[],
+                alternative_destinations=[],
+                travel_recommendations=date_error,
+                user_choice_required=False,
+                date_required=True
+            )
         
         # Route to appropriate research method
         if request_type == "specific":
