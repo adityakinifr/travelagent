@@ -46,7 +46,14 @@ class PlanningSession:
             yield {
                 'type': 'step',
                 'step': 1,
-                'message': 'Analyzing your travel request...'
+                'message': 'Analyzing your travel request...',
+                'details': f"Processing: {self.request_data.get('destination_query', 'No query provided')}",
+                'substeps': [
+                    'Parsing destination query',
+                    'Extracting travel parameters',
+                    'Validating required fields',
+                    'Preparing destination research request'
+                ]
             }
 
             # Create destination request
@@ -76,7 +83,15 @@ class PlanningSession:
             yield {
                 'type': 'step',
                 'step': 2,
-                'message': 'Researching destinations and checking feasibility...'
+                'message': 'Researching destinations and checking feasibility...',
+                'details': f"Searching for destinations matching: {destination_request.query}",
+                'substeps': [
+                    'Performing web search for destination options',
+                    'Scoring destinations by criteria relevance',
+                    'Checking flight availability and pricing',
+                    'Validating budget constraints',
+                    'Assessing destination feasibility'
+                ]
             }
 
             # Research destinations
@@ -139,10 +154,18 @@ class PlanningSession:
 
             # Step 3: Check feasibility
             self.current_step = 3
+            selected_destination = destination_research.primary_destinations[0].name if destination_research.primary_destinations else self.request_data.get('destination_query', '')
             yield {
                 'type': 'step',
                 'step': 3,
-                'message': 'Checking feasibility and finding travel options...'
+                'message': 'Checking feasibility and finding travel options...',
+                'details': f"Validating travel feasibility for: {selected_destination}",
+                'substeps': [
+                    'Checking flight availability and pricing',
+                    'Validating budget constraints',
+                    'Assessing accommodation options',
+                    'Evaluating travel time and logistics'
+                ]
             }
 
             # Step 4: Search travel options
@@ -150,7 +173,14 @@ class PlanningSession:
             yield {
                 'type': 'step',
                 'step': 4,
-                'message': 'Searching for flights and hotels...'
+                'message': 'Searching for flights and hotels...',
+                'details': f"Finding best travel options for: {selected_destination}",
+                'substeps': [
+                    'Searching flight options with Amadeus API',
+                    'Finding hotel accommodations',
+                    'Comparing prices and availability',
+                    'Applying user preferences and filters'
+                ]
             }
 
             # Create trip specification
@@ -177,7 +207,15 @@ class PlanningSession:
             yield {
                 'type': 'step',
                 'step': 5,
-                'message': 'Creating your personalized itinerary...'
+                'message': 'Creating your personalized itinerary...',
+                'details': f"Generating detailed itinerary for: {selected_destination}",
+                'substeps': [
+                    'Analyzing travel options and preferences',
+                    'Creating day-by-day activity schedule',
+                    'Optimizing timing and logistics',
+                    'Adding personalized recommendations',
+                    'Finalizing itinerary details'
+                ]
             }
 
             # Create itinerary
