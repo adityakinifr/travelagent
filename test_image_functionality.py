@@ -65,9 +65,10 @@ def test_destination_with_images():
         result = agent.research_abstract_destination(request)
         
         print(f"\n✅ Research completed!")
-        print(f"   Found {len(result.destinations)} destinations")
+        all_destinations = result.primary_destinations + result.alternative_destinations
+        print(f"   Found {len(all_destinations)} destinations")
         
-        for i, dest in enumerate(result.destinations[:3]):  # Show first 3
+        for i, dest in enumerate(all_destinations[:3]):  # Show first 3
             print(f"\n   Destination {i+1}: {dest.name}, {dest.country}")
             print(f"      Description: {dest.description[:100]}...")
             if dest.image_url:
