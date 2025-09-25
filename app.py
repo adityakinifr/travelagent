@@ -370,6 +370,15 @@ def index():
     except FileNotFoundError:
         return "HTML file not found. Please ensure index.html exists in the current directory.", 404
 
+@app.route('/preferences.html')
+def preferences():
+    """Serve the preferences HTML page"""
+    try:
+        with open('preferences.html', 'r') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "Preferences page not found. Please ensure preferences.html exists in the current directory.", 404
+
 @app.route('/app.js')
 def app_js():
     """Serve the JavaScript file"""
@@ -378,6 +387,15 @@ def app_js():
             return f.read(), 200, {'Content-Type': 'application/javascript'}
     except FileNotFoundError:
         return "JavaScript file not found. Please ensure app.js exists in the current directory.", 404
+
+@app.route('/preferences.js')
+def preferences_js():
+    """Serve the preferences JavaScript file"""
+    try:
+        with open('preferences.js', 'r') as f:
+            return f.read(), 200, {'Content-Type': 'application/javascript'}
+    except FileNotFoundError:
+        return "Preferences JavaScript file not found. Please ensure preferences.js exists in the current directory.", 404
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
