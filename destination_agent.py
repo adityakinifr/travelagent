@@ -4,7 +4,7 @@ Destination Research Agent for handling specific and abstract destination reques
 
 import os
 import requests
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple, Any
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
