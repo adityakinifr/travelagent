@@ -11,6 +11,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from preferences_manager import PreferencesManager
+from feasibility_checker import FeasibilityChecker
 
 # Load environment variables
 load_dotenv()
@@ -79,6 +80,7 @@ class DestinationResearchAgent:
         )
         self.serpapi_key = os.getenv("SERPAPI_KEY")
         self.preferences_manager = PreferencesManager(preferences_file)
+        self.feasibility_checker = FeasibilityChecker(preferences_file)
     
     def search_web(self, query: str, num_results: int = 5) -> List[str]:
         """Search the web for current information about destinations"""
@@ -825,3 +827,169 @@ class DestinationResearchAgent:
         if "comparison" in response.lower() or "compare" in response.lower():
             return "See detailed comparison in travel recommendations"
         return "Multiple destinations analyzed - see individual recommendations"
+    
+    def research_destination_with_feasibility(
+        self, 
+        user_request: str, 
+        check_feasibility: bool = True,
+        min_feasibility_score: float = 0.6
+    ) -> DestinationResearchResult:
+        """Research destinations with feasibility checking and backtracking"""
+        
+        print(f"🔍 Starting destination research with feasibility checking: {user_request}")
+        
+        # First, do the normal destination research
+        initial_result = self.research_destination(user_request)
+        
+        if not check_feasibility:
+            return initial_result
+        
+        # Extract parameters for feasibility checking
+        request_params = self.extract_destination_parameters(user_request)
+        
+        # Check feasibility for all primary destinations
+        if initial_result.primary_destinations:
+            print(f"\n🔍 Checking feasibility for {len(initial_result.primary_destinations)} destinations...")
+            
+            destination_names = [dest.name for dest in initial_result.primary_destinations]
+            
+            feasibility_results = self.feasibility_checker.check_multiple_destinations(
+                destinations=destination_names,
+                origin=request_params.origin_location or "Unknown",
+                travel_dates=request_params.travel_dates or "summer",
+                budget=request_params.budget,
+                traveler_type=request_params.traveler_type or "leisure"
+            )
+            
+            # Filter for feasible destinations
+            feasible_destinations = []
+            infeasible_destinations = []
+            
+            for dest_name, feasibility_result in feasibility_results:
+                if feasibility_result.is_feasible and feasibility_result.feasibility_score >= min_feasibility_score:
+                    # Find the original destination object
+                    original_dest = next((d for d in initial_result.primary_destinations if d.name == dest_name), None)
+                    if original_dest:
+                        # Add feasibility information to the destination
+                        original_dest.estimated_cost = f"${feasibility_result.estimated_total_cost:.0f}"
+                        original_dest.travel_time_from_origin = feasibility_result.details.get("flight", {}).get("flight_duration", "Unknown")
+                        feasible_destinations.append(original_dest)
+                else:
+                    infeasible_destinations.append((dest_name, feasibility_result))
+            
+            # If we have feasible destinations, use them
+            if feasible_destinations:
+                print(f"✅ Found {len(feasible_destinations)} feasible destinations")
+                
+                # Update the result with feasible destinations
+                initial_result.primary_destinations = feasible_destinations
+                initial_result.alternative_destinations = initial_result.alternative_destinations + [
+                    dest for dest in initial_result.primary_destinations 
+                    if dest not in feasible_destinations
+                ]
+                
+                # Add feasibility information to the recommendations
+                feasibility_summary = self._create_feasibility_summary(feasible_destinations, infeasible_destinations)
+                initial_result.travel_recommendations += f"\n\n{feasibility_summary}"
+                
+            else:
+                print(f"❌ No feasible destinations found, generating alternatives...")
+                
+                # Generate alternative destinations
+                alternative_result = self._generate_alternative_destinations(
+                    user_request, request_params, infeasible_destinations
+                )
+                
+                if alternative_result:
+                    return alternative_result
+                else:
+                    # If no alternatives work, return the original result with feasibility warnings
+                    feasibility_warnings = self._create_feasibility_warnings(infeasible_destinations)
+                    initial_result.travel_recommendations += f"\n\n{feasibility_warnings}"
+        
+        return initial_result
+    
+    def _create_feasibility_summary(
+        self, 
+        feasible_destinations: List[DestinationOption], 
+        infeasible_destinations: List[Tuple[str, Any]]
+    ) -> str:
+        """Create a summary of feasibility results"""
+        
+        summary = "## Feasibility Analysis\n\n"
+        
+        if feasible_destinations:
+            summary += "### ✅ Feasible Destinations:\n"
+            for dest in feasible_destinations:
+                summary += f"- **{dest.name}**: Estimated cost {dest.estimated_cost}, Travel time {dest.travel_time_from_origin}\n"
+        
+        if infeasible_destinations:
+            summary += "\n### ⚠️ Destinations with Issues:\n"
+            for dest_name, feasibility_result in infeasible_destinations:
+                summary += f"- **{dest_name}**: {', '.join(feasibility_result.issues)}\n"
+        
+        return summary
+    
+    def _create_feasibility_warnings(self, infeasible_destinations: List[Tuple[str, Any]]) -> str:
+        """Create warnings for infeasible destinations"""
+        
+        warnings = "## ⚠️ Feasibility Warnings\n\n"
+        warnings += "The following destinations have feasibility issues:\n\n"
+        
+        for dest_name, feasibility_result in infeasible_destinations:
+            warnings += f"### {dest_name}\n"
+            warnings += f"- **Feasibility Score**: {feasibility_result.feasibility_score:.1f}/1.0\n"
+            warnings += f"- **Issues**: {', '.join(feasibility_result.issues)}\n"
+            
+            if feasibility_result.alternatives:
+                warnings += f"- **Suggested Alternatives**: {', '.join(feasibility_result.alternatives)}\n"
+            
+            warnings += "\n"
+        
+        return warnings
+    
+    def _generate_alternative_destinations(
+        self, 
+        user_request: str, 
+        request_params: DestinationRequest,
+        infeasible_destinations: List[Tuple[str, Any]]
+    ) -> Optional[DestinationResearchResult]:
+        """Generate alternative destinations when primary options are not feasible"""
+        
+        print("🔄 Generating alternative destinations...")
+        
+        # Collect all alternatives from infeasible destinations
+        all_alternatives = []
+        for _, feasibility_result in infeasible_destinations:
+            all_alternatives.extend(feasibility_result.alternatives)
+        
+        # Remove duplicates and limit to top 5
+        unique_alternatives = list(dict.fromkeys(all_alternatives))[:5]
+        
+        if not unique_alternatives:
+            return None
+        
+        # Create a new request for alternatives
+        alternative_request = f"Find alternative destinations similar to: {request_params.query}"
+        if request_params.origin_location:
+            alternative_request += f" within reasonable distance from {request_params.origin_location}"
+        if request_params.max_travel_time:
+            alternative_request += f" within {request_params.max_travel_time}"
+        if request_params.budget:
+            alternative_request += f" with budget around {request_params.budget}"
+        
+        # Research alternatives
+        alternative_result = self.research_destination(alternative_request)
+        
+        if alternative_result.primary_destinations:
+            # Add a note about why these are alternatives
+            alternative_result.travel_recommendations = (
+                "## Alternative Destinations\n\n"
+                "The originally suggested destinations had feasibility issues. "
+                "Here are alternative options that should work better:\n\n" +
+                alternative_result.travel_recommendations
+            )
+            
+            return alternative_result
+        
+        return None

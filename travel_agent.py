@@ -157,8 +157,12 @@ class TravelAgent:
         Accommodation Preference: {trip_spec.accommodation_preference}
         """
         
-        # Use the destination research agent
-        destination_research = self.destination_agent.research_destination(destination_request)
+        # Use the destination research agent with feasibility checking
+        destination_research = self.destination_agent.research_destination_with_feasibility(
+            user_request=destination_request,
+            check_feasibility=True,
+            min_feasibility_score=0.6
+        )
         
         # Store the research results in state
         state["destination_research"] = destination_research
