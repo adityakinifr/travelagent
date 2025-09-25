@@ -646,26 +646,35 @@ class TravelAgentApp {
                 <form id="destination-choice-form">
                     ${data.destinations.map((dest, index) => `
                         <div class="destination-card">
-                            <div class="destination-header">
-                                <div>
-                                    <div class="destination-name">${dest.name}</div>
-                                    <div class="destination-location">${dest.country}</div>
-                                </div>
-                                <input type="radio" name="destination_choice" value="${index}" id="dest-${index}" required>
+                            <div class="destination-image">
+                                ${dest.image_url ? 
+                                    `<img src="${dest.image_url}" alt="${dest.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                     <div style="display: none;"><i class="fas fa-map-marker-alt"></i> ${dest.name}</div>` :
+                                    `<div><i class="fas fa-map-marker-alt"></i> ${dest.name}</div>`
+                                }
                             </div>
-                            <div class="destination-description">${dest.description}</div>
-                            <div class="destination-details">
-                                <div class="detail-item">
-                                    <i class="fas fa-clock"></i>
-                                    <span>Best time: ${dest.best_time_to_visit}</span>
+                            <div class="destination-content">
+                                <div class="destination-header">
+                                    <div>
+                                        <div class="destination-name">${dest.name}</div>
+                                        <div class="destination-location">${dest.country}</div>
+                                    </div>
+                                    <input type="radio" name="destination_choice" value="${index}" id="dest-${index}" required>
                                 </div>
-                                <div class="detail-item">
-                                    <i class="fas fa-star"></i>
-                                    <span>Family score: ${dest.family_friendly_score || 'N/A'}/10</span>
-                                </div>
-                                <div class="detail-item">
-                                    <i class="fas fa-shield-alt"></i>
-                                    <span>Safety: ${dest.safety_rating}</span>
+                                <div class="destination-description">${dest.description}</div>
+                                <div class="destination-details">
+                                    <div class="detail-item">
+                                        <i class="fas fa-clock"></i>
+                                        <span>Best time: ${dest.best_time_to_visit}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-star"></i>
+                                        <span>Family score: ${dest.family_friendly_score || 'N/A'}/10</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <i class="fas fa-shield-alt"></i>
+                                        <span>Safety: ${dest.safety_rating}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>

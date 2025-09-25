@@ -57,6 +57,8 @@ class DestinationOption(BaseModel):
     crowd_levels: Optional[str] = None  # "low", "moderate", "high", "peak"
     nightlife_rating: Optional[str] = None  # "none", "limited", "moderate", "vibrant"
     romantic_appeal: Optional[str] = None  # "low", "moderate", "high"
+    image_url: Optional[str] = None  # Main destination image
+    image_urls: List[str] = []  # Additional images
     business_friendly: Optional[bool] = None
 
 class DestinationResearchResult(BaseModel):
@@ -354,6 +356,97 @@ class DestinationResearchAgent:
         
         return list(destination_map.values())
     
+    def _search_destination_images(self, destination_name: str, country: str = None) -> Dict[str, str]:
+        """Search for destination images using web search"""
+        try:
+            # Create search query for destination images
+            search_query = f"{destination_name} {country or ''} travel destination photos".strip()
+            print(f"   📸 Searching for images: {search_query}")
+            
+            # Use SerpAPI for image search
+            serpapi_key = os.getenv('SERPAPI_API_KEY')
+            if not serpapi_key:
+                print("   ⚠️  SERPAPI_API_KEY not found, using LLM fallback for images")
+                return self._llm_image_lookup(destination_name, country)
+            
+            params = {
+                'q': search_query,
+                'api_key': serpapi_key,
+                'tbm': 'isch',  # Image search
+                'num': 5
+            }
+            
+            response = requests.get('https://serpapi.com/search', params=params)
+            if response.status_code == 200:
+                data = response.json()
+                images = data.get('images_results', [])
+                
+                if images:
+                    # Get the first few high-quality images
+                    image_urls = []
+                    for img in images[:3]:  # Get top 3 images
+                        if img.get('original'):
+                            image_urls.append(img['original'])
+                        elif img.get('link'):
+                            image_urls.append(img['link'])
+                    
+                    if image_urls:
+                        return {
+                            "primary": image_urls[0],
+                            "additional": image_urls[1:] if len(image_urls) > 1 else []
+                        }
+            
+            print(f"   ⚠️  No images found for {destination_name}")
+            return self._llm_image_lookup(destination_name, country)
+            
+        except Exception as e:
+            print(f"   ❌ Error searching for images: {e}")
+            return self._llm_image_lookup(destination_name, country)
+    
+    def _llm_image_lookup(self, destination_name: str, country: str = None) -> Dict[str, str]:
+        """Use LLM to suggest image search terms when web search is not available"""
+        try:
+            prompt = f"""
+            Suggest image search terms for this destination: {destination_name}, {country or ''}
+            
+            Return a JSON object with search terms that would help find good travel photos:
+            {{
+                "search_terms": ["term1", "term2", "term3"],
+                "description": "Brief description of what images to look for"
+            }}
+            
+            Focus on:
+            - Famous landmarks or attractions
+            - Beautiful scenery or landscapes
+            - Cultural highlights
+            - Popular tourist spots
+            
+            Return only the JSON, no additional text.
+            """
+            
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+            
+            # Parse the JSON response
+            import json
+            import re
+            
+            json_match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group())
+                print(f"   🧠 LLM suggested image search terms: {result.get('search_terms', [])}")
+                return {
+                    "primary": None,  # No actual image URL
+                    "additional": [],
+                    "search_terms": result.get('search_terms', []),
+                    "description": result.get('description', '')
+                }
+            else:
+                return {"primary": None, "additional": []}
+                
+        except Exception as e:
+            print(f"   ❌ Error in LLM image lookup: {e}")
+            return {"primary": None, "additional": []}
+
     def _create_web_search_context(self, web_search_results: List[Dict[str, any]]) -> str:
         """Create a formatted context from web search results"""
         if not web_search_results:
