@@ -3,6 +3,7 @@ LangGraph Travel Agent for creating trip itineraries
 """
 
 import os
+import requests
 from typing import Dict, List, TypedDict, Annotated, Optional
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -137,12 +138,12 @@ class TravelAgent:
         Guidelines:
         - If information is missing, make reasonable assumptions based on context
         - For destinations, be specific with city and country when possible
-        - For small towns/villages, identify the nearest major airport for flight planning
+        - For small towns/villages, note that airport lookup will be done later via web search
         - For origins, try to identify the nearest major airport or city
         - For budgets, interpret relative terms (e.g., 'affordable' = 'budget-friendly', 'splurge' = 'luxury')
         - For dates, preserve the user's exact wording (don't add years unless specified)
         - For interests, extract all mentioned activities and preferences
-        - Consider that small destinations may require flying to nearby major airports
+        - Don't worry about airport codes - those will be resolved via web search
         - Return only valid JSON, no additional text
         """
         
@@ -202,9 +203,112 @@ class TravelAgent:
         
         return state
     
+    def _lookup_airport_codes(self, location: str) -> Dict[str, str]:
+        """Use web search to find airport codes for a given location"""
+        try:
+            # Search for airport information
+            search_query = f"nearest airport to {location} IATA code"
+            print(f"   🔍 Searching for airport codes: {search_query}")
+            
+            # Use SerpAPI for web search (same as destination agent)
+            serpapi_key = os.getenv('SERPAPI_API_KEY')
+            if not serpapi_key:
+                print("   ⚠️  SERPAPI_API_KEY not found, using LLM fallback")
+                return self._llm_airport_lookup(location)
+            
+            params = {
+                'q': search_query,
+                'api_key': serpapi_key,
+                'num': 5
+            }
+            
+            response = requests.get('https://serpapi.com/search', params=params)
+            if response.status_code == 200:
+                data = response.json()
+                organic_results = data.get('organic_results', [])
+                
+                airports = []
+                for result in organic_results[:3]:  # Top 3 results
+                    snippet = result.get('snippet', '').lower()
+                    title = result.get('title', '').lower()
+                    
+                    # Look for 3-letter airport codes in the results
+                    import re
+                    codes = re.findall(r'\b[A-Z]{3}\b', snippet + ' ' + title)
+                    for code in codes:
+                        if code not in ['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'GET', 'HAS', 'HIM', 'HIS', 'HOW', 'ITS', 'NEW', 'NOW', 'OLD', 'SEE', 'TWO', 'WAY', 'WHO', 'BOY', 'DID', 'MAN', 'MEN', 'PUT', 'SAY', 'SHE', 'TOO', 'USE']:
+                            airports.append(code)
+                
+                if airports:
+                    return {
+                        "primary": airports[0],
+                        "alternatives": airports[1:3] if len(airports) > 1 else []
+                    }
+            
+            print(f"   ⚠️  No airport codes found for {location}")
+            return {"primary": "UNKNOWN", "alternatives": []}
+            
+        except Exception as e:
+            print(f"   ❌ Error looking up airport codes: {e}")
+            return self._llm_airport_lookup(location)
+    
+    def _llm_airport_lookup(self, location: str) -> Dict[str, str]:
+        """Use LLM knowledge to find airport codes when web search is not available"""
+        try:
+            prompt = f"""
+            Find the nearest major airport(s) to this location: {location}
+            
+            Return the information as a JSON object with this format:
+            {{
+                "primary": "3-letter airport code",
+                "alternatives": ["alternative1", "alternative2"]
+            }}
+            
+            Guidelines:
+            - For small towns, find the nearest major airport
+            - For islands, find the main airport serving that island
+            - For mountain towns, find the nearest accessible major airport
+            - For major cities, use their primary international airport
+            - Only use valid 3-letter IATA airport codes
+            - Return only the JSON, no additional text
+            """
+            
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+            
+            # Parse the JSON response
+            import json
+            import re
+            
+            # Extract JSON from the response
+            json_match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            if json_match:
+                airports = json.loads(json_match.group())
+                print(f"   🧠 LLM found airports: {airports}")
+                return airports
+            else:
+                print(f"   ⚠️  Could not parse LLM response")
+                return {"primary": "UNKNOWN", "alternatives": []}
+                
+        except Exception as e:
+            print(f"   ❌ Error in LLM airport lookup: {e}")
+            return {"primary": "UNKNOWN", "alternatives": []}
+    
     def _research_destination(self, state: AgentState) -> AgentState:
         """Research the destination using the specialized destination agent"""
         trip_spec = state["trip_spec"]
+        
+        # Look up airport codes for destination and origin
+        print(f"   🛫 Looking up airport codes...")
+        
+        # Look up destination airport
+        dest_airports = self._lookup_airport_codes(trip_spec.destination)
+        print(f"      Destination airports: {dest_airports}")
+        
+        # Look up origin airport if specified
+        origin_airports = None
+        if trip_spec.origin:
+            origin_airports = self._lookup_airport_codes(trip_spec.origin)
+            print(f"      Origin airports: {origin_airports}")
         
         # Create a comprehensive request for the destination agent
         destination_request = f"""
@@ -216,6 +320,8 @@ class TravelAgent:
         Accommodation Preference: {trip_spec.accommodation_preference}
         Travel Dates: {trip_spec.travel_dates or 'Not specified'}
         Origin: {trip_spec.origin or 'Not specified'}
+        Destination Airport: {dest_airports.get('primary', 'UNKNOWN')}
+        Origin Airport: {origin_airports.get('primary', 'UNKNOWN') if origin_airports else 'Not specified'}
         """
         
         # Use the destination research agent with feasibility checking

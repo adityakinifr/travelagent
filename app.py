@@ -103,6 +103,13 @@ class PlanningSession:
                 'details': 'Searching travel websites and databases'
             }
 
+            # Show airport lookup progress
+            yield {
+                'type': 'progress_update',
+                'message': 'Looking up airport codes for destinations...',
+                'details': 'Finding nearest airports for flight planning'
+            }
+
             # Research destinations
             destination_research = self.travel_agent.destination_agent.research_destination_with_feasibility(destination_request)
 
