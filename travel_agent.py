@@ -21,7 +21,7 @@ class TripSpecification(BaseModel):
     """Structure for trip specifications"""
     destination: str
     duration: str
-    budget: str
+    budget: Optional[str] = None
     interests: List[str]
     travel_style: str
     accommodation_preference: str
@@ -160,13 +160,19 @@ class TravelAgent:
             duration = "10 days"
         
         # Extract budget
-        budget = "$2000"  # Default
+        budget = None  # Default to None, will be validated later
         if "$1000" in content or "1000" in content:
             budget = "$1000"
+        elif "$2000" in content or "2000" in content:
+            budget = "$2000"
         elif "$3000" in content or "3000" in content:
             budget = "$3000"
         elif "$5000" in content or "5000" in content:
             budget = "$5000"
+        elif "budget" in content and ("friendly" in content or "low" in content):
+            budget = "budget-friendly"
+        elif "luxury" in content:
+            budget = "luxury"
         
         # Extract interests
         interests = ["sightseeing", "food", "culture"]  # Default
@@ -265,8 +271,8 @@ class TravelAgent:
             min_feasibility_score=0.6
         )
         
-        # Check if dates are required
-        if destination_research.date_required:
+        # Check if dates or budget are required
+        if destination_research.date_required or destination_research.budget_required:
             state["destination_research"] = destination_research
             state["messages"].append(AIMessage(content=destination_research.travel_recommendations))
             return state
@@ -281,7 +287,7 @@ class TravelAgent:
         """Determine if the workflow should continue after destination research"""
         destination_research = state.get("destination_research")
         
-        if destination_research and destination_research.date_required:
+        if destination_research and (destination_research.date_required or destination_research.budget_required):
             return "stop"
         else:
             return "continue"

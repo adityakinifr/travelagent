@@ -68,6 +68,7 @@ class DestinationResearchResult(BaseModel):
     user_choice_required: bool = False
     choice_prompt: Optional[str] = None
     date_required: bool = False
+    budget_required: bool = False
 
 class DestinationResearchAgent:
     """Specialized agent for destination research and recommendation"""
@@ -644,6 +645,12 @@ class DestinationResearchAgent:
             return "Travel dates are required to proceed with destination research and feasibility checking. Please specify your travel dates (e.g., 'June 2024', 'summer', 'next month', 'March 15-20, 2024')."
         return None
     
+    def _validate_budget(self, request_params: DestinationRequest) -> Optional[str]:
+        """Check if budget is specified and return error message if not"""
+        if not request_params.budget or request_params.budget.strip() == "":
+            return "Budget is required to proceed with destination research and feasibility checking. Please specify your budget (e.g., '$2000', '$1000-1500', 'budget-friendly', 'luxury')."
+        return None
+    
     def research_destination(self, user_request: str) -> DestinationResearchResult:
         """Main method to research destinations based on user request"""
         print(f"🔍 Starting destination research for: {user_request}")
@@ -677,7 +684,22 @@ class DestinationResearchAgent:
                 alternative_destinations=[],
                 travel_recommendations=date_error,
                 user_choice_required=False,
-                date_required=True
+                date_required=True,
+                budget_required=False
+            )
+        
+        # Validate budget
+        budget_error = self._validate_budget(request_params)
+        if budget_error:
+            print(f"   ❌ {budget_error}")
+            return DestinationResearchResult(
+                request_type=request_type,
+                primary_destinations=[],
+                alternative_destinations=[],
+                travel_recommendations=budget_error,
+                user_choice_required=False,
+                date_required=False,
+                budget_required=True
             )
         
         # Route to appropriate research method
