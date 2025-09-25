@@ -26,6 +26,7 @@ class TripSpecification(BaseModel):
     travel_style: str
     accommodation_preference: str
     travel_dates: Optional[str] = None
+    origin: Optional[str] = None
 
 class ItineraryDay(BaseModel):
     """Structure for a single day in the itinerary"""
@@ -138,6 +139,7 @@ class TravelAgent:
         # Parse the response to create TripSpecification
         # For now, we'll use simple parsing - in a real implementation, you'd use more sophisticated parsing
         content = response.content.lower()
+        user_content = user_message.lower()
         
         # Extract destination
         destination = "Paris, France"  # Default
@@ -234,6 +236,49 @@ class TravelAgent:
         elif "december" in content:
             travel_dates = "December 2024"
         
+        # Extract origin - look for specific origin indicators in user message
+        origin = None
+        if "flying from" in user_content or "departing from" in user_content or "leaving from" in user_content:
+            # Extract origin from phrases like "flying from New York"
+            if "sfo" in user_content or "san francisco" in user_content:
+                origin = "SFO"
+            elif "lax" in user_content or "los angeles" in user_content:
+                origin = "LAX"
+            elif "jfk" in user_content or "lga" in user_content or "new york" in user_content:
+                origin = "NYC"
+            elif "london" in user_content or "lhr" in user_content:
+                origin = "London"
+            elif "paris" in user_content or "cdg" in user_content:
+                origin = "Paris"
+            elif "tokyo" in user_content or "nrt" in user_content:
+                origin = "Tokyo"
+            elif "chicago" in user_content or "ord" in user_content:
+                origin = "Chicago"
+            elif "miami" in user_content or "mia" in user_content:
+                origin = "Miami"
+            elif "seattle" in user_content or "sea" in user_content:
+                origin = "Seattle"
+            elif "boston" in user_content or "bos" in user_content:
+                origin = "Boston"
+        elif "from" in user_content and ("sfo" in user_content or "san francisco" in user_content):
+            origin = "SFO"
+        elif "from" in user_content and ("lax" in user_content or "los angeles" in user_content):
+            origin = "LAX"
+        elif "from" in user_content and ("jfk" in user_content or "lga" in user_content or "new york" in user_content):
+            origin = "NYC"
+        elif "from" in user_content and ("london" in user_content or "lhr" in user_content):
+            origin = "London"
+        elif "from" in user_content and ("tokyo" in user_content or "nrt" in user_content):
+            origin = "Tokyo"
+        elif "from" in user_content and ("chicago" in user_content or "ord" in user_content):
+            origin = "Chicago"
+        elif "from" in user_content and ("miami" in user_content or "mia" in user_content):
+            origin = "Miami"
+        elif "from" in user_content and ("seattle" in user_content or "sea" in user_content):
+            origin = "Seattle"
+        elif "from" in user_content and ("boston" in user_content or "bos" in user_content):
+            origin = "Boston"
+        
         trip_spec = TripSpecification(
             destination=destination,
             duration=duration,
@@ -241,7 +286,8 @@ class TravelAgent:
             interests=interests,
             travel_style=travel_style,
             accommodation_preference=accommodation_preference,
-            travel_dates=travel_dates
+            travel_dates=travel_dates,
+            origin=origin
         )
         
         state["trip_spec"] = trip_spec
@@ -262,6 +308,7 @@ class TravelAgent:
         Travel Style: {trip_spec.travel_style}
         Accommodation Preference: {trip_spec.accommodation_preference}
         Travel Dates: {trip_spec.travel_dates or 'Not specified'}
+        Origin: {trip_spec.origin or 'Not specified'}
         """
         
         # Use the destination research agent with feasibility checking
@@ -271,8 +318,10 @@ class TravelAgent:
             min_feasibility_score=0.6
         )
         
-        # Check if dates or budget are required
-        if destination_research.date_required or destination_research.budget_required:
+        # Check if dates, budget, or origin are required
+        if (destination_research.date_required or 
+            destination_research.budget_required or 
+            destination_research.origin_required):
             state["destination_research"] = destination_research
             state["messages"].append(AIMessage(content=destination_research.travel_recommendations))
             return state
@@ -287,7 +336,9 @@ class TravelAgent:
         """Determine if the workflow should continue after destination research"""
         destination_research = state.get("destination_research")
         
-        if destination_research and (destination_research.date_required or destination_research.budget_required):
+        if destination_research and (destination_research.date_required or 
+                                   destination_research.budget_required or 
+                                   destination_research.origin_required):
             return "stop"
         else:
             return "continue"

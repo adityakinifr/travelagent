@@ -10,31 +10,31 @@ from pydantic import BaseModel
 
 class TravelPreferences(BaseModel):
     """Structure for travel preferences"""
-    traveler_profile: Dict[str, Any]
-    hotel_preferences: Dict[str, Any]
-    flight_preferences: Dict[str, Any]
-    travel_behavior: Dict[str, Any]
-    dining_preferences: Dict[str, Any]
-    activity_preferences: Dict[str, Any]
-    transportation_preferences: Dict[str, Any]
-    budget_preferences: Dict[str, Any]
-    special_requirements: Dict[str, Any]
-    loyalty_programs: Dict[str, Any]
-    travel_insurance: Dict[str, Any]
-    technology_preferences: Dict[str, Any]
-    packing_preferences: Dict[str, Any]
-    communication_preferences: Dict[str, Any]
-    health_wellness: Dict[str, Any]
-    safety_security: Dict[str, Any]
-    cultural_preferences: Dict[str, Any]
-    environmental_preferences: Dict[str, Any]
-    entertainment_preferences: Dict[str, Any]
-    photography_social: Dict[str, Any]
-    flexibility_preferences: Dict[str, Any]
-    group_dynamics: Dict[str, Any]
-    learning_development: Dict[str, Any]
-    comfort_preferences: Dict[str, Any]
-    logistics_preferences: Dict[str, Any]
+    traveler_profile: Dict[str, Any] = {}
+    hotel_preferences: Dict[str, Any] = {}
+    flight_preferences: Dict[str, Any] = {}
+    travel_behavior: Dict[str, Any] = {}
+    dining_preferences: Dict[str, Any] = {}
+    activity_preferences: Dict[str, Any] = {}
+    transportation_preferences: Dict[str, Any] = {}
+    budget_preferences: Dict[str, Any] = {}
+    special_requirements: Dict[str, Any] = {}
+    loyalty_programs: Dict[str, Any] = {}
+    travel_insurance: Dict[str, Any] = {}
+    technology_preferences: Dict[str, Any] = {}
+    packing_preferences: Dict[str, Any] = {}
+    communication_preferences: Dict[str, Any] = {}
+    health_wellness: Dict[str, Any] = {}
+    safety_security: Dict[str, Any] = {}
+    cultural_preferences: Dict[str, Any] = {}
+    environmental_preferences: Dict[str, Any] = {}
+    entertainment_preferences: Dict[str, Any] = {}
+    photography_social: Dict[str, Any] = {}
+    flexibility_preferences: Dict[str, Any] = {}
+    group_dynamics: Dict[str, Any] = {}
+    learning_development: Dict[str, Any] = {}
+    comfort_preferences: Dict[str, Any] = {}
+    logistics_preferences: Dict[str, Any] = {}
 
 class PreferencesManager:
     """Manages travel preferences and applies them to recommendations"""

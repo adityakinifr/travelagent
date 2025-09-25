@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Travel Agent</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .progress-section {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+
+        .progress-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .progress-card.active {
+            display: block;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #a0aec0;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .step-circle.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .step-circle.completed {
+            background: #48bb78;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 12px;
+            text-align: center;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .step-circle.active + .step-label,
+        .step-circle.completed + .step-label {
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .progress-content {
+            min-height: 200px;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-info {
+            background: #ebf8ff;
+            border: 1px solid #bee3f8;
+            color: #2b6cb0;
+        }
+
+        .status-warning {
+            background: #fffbeb;
+            border: 1px solid #fbd38d;
+            color: #c05621;
+        }
+
+        .status-error {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+        }
+
+        .status-success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #2f855a;
+        }
+
+        .user-input-section {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .user-input-section h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .results-section.active {
+            display: block;
+        }
+
+        .destination-card {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .destination-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        }
+
+        .destination-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .destination-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .destination-location {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .destination-description {
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .destination-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4a5568;
+        }
+
+        .detail-item i {
+            color: #667eea;
+            width: 16px;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .preferences-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .preference-section {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .preference-section h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            font-weight: normal;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .progress-steps {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .progress-steps::before {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-plane"></i> AI Travel Agent</h1>
+            <p>Your intelligent travel planning companion</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Preferences Editor -->
+            <div class="card">
+                <h2><i class="fas fa-cog"></i> Travel Preferences</h2>
+                <div id="preferences-editor">
+                    <!-- Preferences will be loaded here -->
+                </div>
+                <div style="margin-top: 20px;">
+                    <button class="btn" onclick="savePreferences()">
+                        <i class="fas fa-save"></i> Save Preferences
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetPreferences()">
+                        <i class="fas fa-undo"></i> Reset to Defaults
+                    </button>
+                </div>
+            </div>
+
+            <!-- Travel Request -->
+            <div class="card">
+                <h2><i class="fas fa-search"></i> Plan Your Trip</h2>
+                <form id="travel-request-form">
+                    <div class="form-group">
+                        <label for="destination-query">What kind of trip are you looking for?</label>
+                        <textarea id="destination-query" rows="3" placeholder="e.g., 'sunny beach destinations within 3 hours of SFO for a family with kids in summer' or 'cultural city break in Europe for a couple'"></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="travel-dates">Travel Dates</label>
+                            <input type="text" id="travel-dates" placeholder="e.g., 'June 2024', 'summer', 'next month'">
+                        </div>
+                        <div class="form-group">
+                            <label for="budget">Budget</label>
+                            <input type="text" id="budget" placeholder="e.g., '$2000', 'budget-friendly', 'luxury'">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="origin">Flying From</label>
+                            <input type="text" id="origin" placeholder="e.g., 'SFO', 'New York', 'London'">
+                        </div>
+                        <div class="form-group">
+                            <label for="group-size">Group Size</label>
+                            <select id="group-size">
+                                <option value="">Select group size</option>
+                                <option value="1">Solo traveler</option>
+                                <option value="2">Couple</option>
+                                <option value="3">3 people</option>
+                                <option value="4">4 people</option>
+                                <option value="5">5 people</option>
+                                <option value="6">6 people</option>
+                                <option value="7+">7+ people</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="traveler-type">Traveler Type</label>
+                        <select id="traveler-type">
+                            <option value="">Select traveler type</option>
+                            <option value="solo">Solo traveler</option>
+                            <option value="couple">Couple</option>
+                            <option value="family_with_kids">Family with kids</option>
+                            <option value="older_adults">Older adults</option>
+                            <option value="group_friends">Group of friends</option>
+                            <option value="business">Business traveler</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn" id="plan-trip-btn">
+                        <i class="fas fa-magic"></i> Plan My Trip
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section">
+            <div class="progress-card" id="progress-card">
+                <div class="progress-header">
+                    <h2><i class="fas fa-route"></i> Planning Your Trip</h2>
+                    <button class="btn btn-secondary" onclick="cancelPlanning()">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+
+                <div class="progress-steps">
+                    <div class="progress-step">
+                        <div class="step-circle" id="step-1">1</div>
+                        <div class="step-label">Analyzing Request</div>
+                    </div>
+                    <div class="progress-step">
+                        <div class="step-circle" id="step-2">2</div>
+                        <div class="step-label">Researching Destinations</div>
+                    </div>
+                    <div class="progress-step">
+                        <div class="step-circle" id="step-3">3</div>
+                        <div class="step-label">Checking Feasibility</div>
+                    </div>
+                    <div class="progress-step">
+                        <div class="step-circle" id="step-4">4</div>
+                        <div class="step-label">Finding Options</div>
+                    </div>
+                    <div class="progress-step">
+                        <div class="step-circle" id="step-5">5</div>
+                        <div class="step-label">Creating Itinerary</div>
+                    </div>
+                </div>
+
+                <div class="progress-content" id="progress-content">
+                    <!-- Progress content will be updated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="results-section">
+            <div class="card">
+                <h2><i class="fas fa-map-marked-alt"></i> Your Travel Recommendations</h2>
+                <div id="results-content">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

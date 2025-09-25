@@ -52,7 +52,7 @@ class DestinationOption(BaseModel):
     kid_friendly_activities: List[str] = []
     senior_friendly_features: List[str] = []
     accessibility_features: List[str] = []
-    seasonal_highlights: Dict[str, str] = {}  # season -> highlights
+    seasonal_highlights: Dict[str, Optional[str]] = {}  # season -> highlights
     crowd_levels: Optional[str] = None  # "low", "moderate", "high", "peak"
     nightlife_rating: Optional[str] = None  # "none", "limited", "moderate", "vibrant"
     romantic_appeal: Optional[str] = None  # "low", "moderate", "high"
@@ -69,6 +69,7 @@ class DestinationResearchResult(BaseModel):
     choice_prompt: Optional[str] = None
     date_required: bool = False
     budget_required: bool = False
+    origin_required: bool = False
 
 class DestinationResearchAgent:
     """Specialized agent for destination research and recommendation"""
@@ -117,6 +118,256 @@ class DestinationResearchAgent:
         except Exception as e:
             print(f"Web search error: {e}")
             return []
+    
+    def search_and_order_destinations(self, request: DestinationRequest) -> List[Dict[str, any]]:
+        """Perform comprehensive web search and order results by criteria"""
+        print(f"🔍 Performing comprehensive web search for destination research...")
+        
+        # Define search queries based on request type and criteria
+        search_queries = self._generate_search_queries(request)
+        
+        all_results = []
+        
+        # Perform multiple targeted searches
+        for query_info in search_queries:
+            query = query_info["query"]
+            criteria = query_info["criteria"]
+            weight = query_info["weight"]
+            
+            print(f"   🔎 Searching: {query}")
+            web_results = self.search_web(query, num_results=3)
+            
+            # Process and score each result
+            for result in web_results:
+                scored_result = self._score_result_by_criteria(result, request, criteria, weight)
+                if scored_result:
+                    all_results.append(scored_result)
+        
+        # Remove duplicates and order by score
+        unique_results = self._deduplicate_results(all_results)
+        ordered_results = sorted(unique_results, key=lambda x: x["score"], reverse=True)
+        
+        print(f"   📊 Found {len(ordered_results)} unique destinations from web search")
+        return ordered_results[:10]  # Return top 10 results
+    
+    def _generate_search_queries(self, request: DestinationRequest) -> List[Dict[str, any]]:
+        """Generate targeted search queries based on request criteria"""
+        queries = []
+        
+        # Base query for general destination search
+        base_query = f"{request.query} travel destinations"
+        if request.origin_location:
+            base_query += f" from {request.origin_location}"
+        if request.max_travel_time:
+            base_query += f" within {request.max_travel_time}"
+        
+        queries.append({
+            "query": base_query,
+            "criteria": ["general", "accessibility"],
+            "weight": 1.0
+        })
+        
+        # Budget-specific queries
+        if request.budget:
+            budget_query = f"{request.query} {request.budget} budget travel"
+            if request.origin_location:
+                budget_query += f" from {request.origin_location}"
+            queries.append({
+                "query": budget_query,
+                "criteria": ["budget", "cost"],
+                "weight": 1.2
+            })
+        
+        # Interest-specific queries
+        if request.interests:
+            for interest in request.interests:
+                interest_query = f"{request.query} {interest} destinations"
+                if request.origin_location:
+                    interest_query += f" from {request.origin_location}"
+                queries.append({
+                    "query": interest_query,
+                    "criteria": ["interests", interest],
+                    "weight": 1.1
+                })
+        
+        # Traveler type specific queries
+        if request.traveler_type:
+            traveler_query = f"{request.query} {request.traveler_type} travel destinations"
+            if request.origin_location:
+                traveler_query += f" from {request.origin_location}"
+            queries.append({
+                "query": traveler_query,
+                "criteria": ["traveler_type", request.traveler_type],
+                "weight": 1.3
+            })
+        
+        # Seasonal queries
+        if request.seasonal_preferences or request.travel_dates:
+            season = request.seasonal_preferences or request.travel_dates
+            seasonal_query = f"{request.query} {season} travel destinations"
+            if request.origin_location:
+                seasonal_query += f" from {request.origin_location}"
+            queries.append({
+                "query": seasonal_query,
+                "criteria": ["seasonal", "timing"],
+                "weight": 1.1
+            })
+        
+        # Time constraint queries
+        if request.max_travel_time and request.origin_location:
+            time_query = f"destinations within {request.max_travel_time} of {request.origin_location}"
+            queries.append({
+                "query": time_query,
+                "criteria": ["travel_time", "distance"],
+                "weight": 1.4
+            })
+        
+        return queries
+    
+    def _score_result_by_criteria(self, result: str, request: DestinationRequest, criteria: List[str], weight: float) -> Optional[Dict[str, any]]:
+        """Score a web search result based on how well it matches the criteria"""
+        try:
+            # Extract destination name from result
+            destination_name = self._extract_destination_name(result)
+            if not destination_name:
+                return None
+            
+            score = 0.0
+            score_breakdown = {}
+            
+            # Score based on criteria
+            for criterion in criteria:
+                criterion_score = self._calculate_criterion_score(result, request, criterion)
+                score_breakdown[criterion] = criterion_score
+                score += criterion_score
+            
+            # Apply weight
+            score *= weight
+            
+            return {
+                "destination_name": destination_name,
+                "result": result,
+                "score": score,
+                "score_breakdown": score_breakdown,
+                "criteria": criteria,
+                "weight": weight
+            }
+            
+        except Exception as e:
+            print(f"Error scoring result: {e}")
+            return None
+    
+    def _extract_destination_name(self, result: str) -> Optional[str]:
+        """Extract destination name from web search result"""
+        # Use LLM to extract destination name
+        prompt = f"""
+        Extract the main destination name from this web search result:
+        
+        {result}
+        
+        Return only the destination name (e.g., "Paris", "Tokyo", "Barcelona"). 
+        If no clear destination is mentioned, return "None".
+        """
+        
+        try:
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+            destination = response.content.strip()
+            return destination if destination != "None" else None
+        except:
+            return None
+    
+    def _calculate_criterion_score(self, result: str, request: DestinationRequest, criterion: str) -> float:
+        """Calculate score for a specific criterion"""
+        result_lower = result.lower()
+        
+        if criterion == "general":
+            return 0.5  # Base score for general relevance
+        
+        elif criterion == "budget":
+            if request.budget:
+                budget_lower = request.budget.lower()
+                if "budget" in budget_lower and ("budget" in result_lower or "cheap" in result_lower or "affordable" in result_lower):
+                    return 1.0
+                elif "luxury" in budget_lower and ("luxury" in result_lower or "expensive" in result_lower or "premium" in result_lower):
+                    return 1.0
+                elif "$" in request.budget and ("$" in result or "cost" in result_lower or "price" in result_lower):
+                    return 0.8
+            return 0.3
+        
+        elif criterion == "interests":
+            if request.interests:
+                for interest in request.interests:
+                    if interest.lower() in result_lower:
+                        return 1.0
+            return 0.3
+        
+        elif criterion == "traveler_type":
+            if request.traveler_type:
+                traveler_lower = request.traveler_type.lower()
+                if traveler_lower in result_lower:
+                    return 1.0
+                elif "family" in traveler_lower and ("family" in result_lower or "kids" in result_lower or "children" in result_lower):
+                    return 0.9
+                elif "solo" in traveler_lower and ("solo" in result_lower or "single" in result_lower or "backpacker" in result_lower):
+                    return 0.9
+            return 0.3
+        
+        elif criterion == "seasonal":
+            if request.seasonal_preferences or request.travel_dates:
+                season = (request.seasonal_preferences or request.travel_dates).lower()
+                if season in result_lower:
+                    return 1.0
+                elif "summer" in season and ("summer" in result_lower or "warm" in result_lower):
+                    return 0.8
+                elif "winter" in season and ("winter" in result_lower or "snow" in result_lower or "cold" in result_lower):
+                    return 0.8
+            return 0.3
+        
+        elif criterion == "travel_time":
+            if request.max_travel_time and request.origin_location:
+                if "hour" in result_lower or "flight" in result_lower or "distance" in result_lower:
+                    return 0.8
+            return 0.3
+        
+        elif criterion == "accessibility":
+            if request.mobility_requirements:
+                if "accessible" in result_lower or "wheelchair" in result_lower or "mobility" in result_lower:
+                    return 1.0
+            return 0.5
+        
+        return 0.3  # Default score
+    
+    def _deduplicate_results(self, results: List[Dict[str, any]]) -> List[Dict[str, any]]:
+        """Remove duplicate destinations and combine scores"""
+        destination_map = {}
+        
+        for result in results:
+            dest_name = result["destination_name"]
+            if dest_name in destination_map:
+                # Combine scores for duplicate destinations
+                existing = destination_map[dest_name]
+                existing["score"] = max(existing["score"], result["score"])
+                existing["score_breakdown"].update(result["score_breakdown"])
+            else:
+                destination_map[dest_name] = result
+        
+        return list(destination_map.values())
+    
+    def _create_web_search_context(self, web_search_results: List[Dict[str, any]]) -> str:
+        """Create a formatted context from web search results"""
+        if not web_search_results:
+            return "No web search results available."
+        
+        context = "Web search results ordered by relevance score:\n\n"
+        
+        for i, result in enumerate(web_search_results[:10], 1):  # Show top 10
+            context += f"{i}. {result['destination_name']} (Score: {result['score']:.2f})\n"
+            context += f"   Criteria: {', '.join(result['criteria'])}\n"
+            context += f"   Weight: {result['weight']}\n"
+            context += f"   Score Breakdown: {result['score_breakdown']}\n"
+            context += f"   Result: {result['result'][:200]}...\n\n"
+        
+        return context
     
     def get_current_travel_info(self, destination: str) -> str:
         """Get current travel information for a destination"""
@@ -452,9 +703,18 @@ class DestinationResearchAgent:
     def research_abstract_destination(self, request: DestinationRequest) -> DestinationResearchResult:
         """Research destinations based on abstract criteria"""
         
-        # Search for current information about destinations matching criteria
-        search_query = f"{request.query} destinations {request.origin_location or ''} {request.max_travel_time or ''}"
-        current_info = self.search_web(search_query, num_results=3)
+        # Perform comprehensive web search and ordering
+        web_search_results = self.search_and_order_destinations(request)
+        
+        # Get current travel information for top results
+        top_destinations = [result["destination_name"] for result in web_search_results[:5]]
+        current_info = []
+        for dest in top_destinations:
+            dest_info = self.get_current_travel_info(dest)
+            current_info.extend(dest_info)
+        
+        # Create web search context
+        web_context = self._create_web_search_context(web_search_results)
         
         prompt = f"""
         Find destinations that match these criteria:
@@ -472,7 +732,10 @@ class DestinationResearchAgent:
         Seasonal preferences: {request.seasonal_preferences or 'Not specified'}
         Travel dates: {request.travel_dates or 'Not specified'}
         
-        Current Web Information:
+        WEB SEARCH RESULTS (ordered by relevance to criteria):
+        {web_context}
+        
+        Current Travel Information:
         {chr(10).join(current_info) if current_info else "No current web information available - rely on your knowledge"}
         
         IMPORTANT CONSTRAINTS:
@@ -505,6 +768,12 @@ class DestinationResearchAgent:
         - Factor in weather conditions, crowd levels, and seasonal activities
         - Adjust recommendations based on peak/off-peak seasons
         - Consider seasonal pricing and availability
+        
+        EVALUATION INSTRUCTIONS:
+        1. Review the web search results above, which are already ordered by relevance to your criteria
+        2. Evaluate each destination in the order presented, considering how well it matches the specific criteria
+        3. Focus on destinations that appear early in the ordered list as they scored highest for relevance
+        4. Use both the web search information and your knowledge to provide comprehensive recommendations
         
         Use your knowledge and current information to provide 3-5 destination recommendations that match ALL criteria.
         For each destination, include:
@@ -590,9 +859,18 @@ class DestinationResearchAgent:
     def research_constrained_destination(self, request: DestinationRequest) -> DestinationResearchResult:
         """Research destinations with specific constraints"""
         
-        # Search for destinations meeting specific constraints
-        search_query = f"destinations within {request.max_travel_time} of {request.origin_location} {request.interests}"
-        current_info = self.search_web(search_query, num_results=3)
+        # Perform comprehensive web search and ordering
+        web_search_results = self.search_and_order_destinations(request)
+        
+        # Get current travel information for top results
+        top_destinations = [result["destination_name"] for result in web_search_results[:5]]
+        current_info = []
+        for dest in top_destinations:
+            dest_info = self.get_current_travel_info(dest)
+            current_info.extend(dest_info)
+        
+        # Create web search context
+        web_context = self._create_web_search_context(web_search_results)
         
         prompt = f"""
         Find destinations that meet these specific constraints:
@@ -603,8 +881,17 @@ class DestinationResearchAgent:
         Interests: {request.interests or 'General travel'}
         Travel style: {request.travel_style or 'Not specified'}
         
-        Current Web Information:
+        WEB SEARCH RESULTS (ordered by relevance to constraints):
+        {web_context}
+        
+        Current Travel Information:
         {chr(10).join(current_info) if current_info else "No current web information available - rely on your knowledge"}
+        
+        EVALUATION INSTRUCTIONS:
+        1. Review the web search results above, which are already ordered by relevance to your constraints
+        2. Evaluate each destination in the order presented, focusing on constraint compliance
+        3. Prioritize destinations that appear early in the ordered list as they scored highest for constraint relevance
+        4. Use both the web search information and your knowledge to provide comprehensive recommendations
         
         Focus on destinations that are:
         1. Within the specified travel time from origin
@@ -647,9 +934,31 @@ class DestinationResearchAgent:
     
     def _validate_budget(self, request_params: DestinationRequest) -> Optional[str]:
         """Check if budget is specified and return error message if not"""
-        if not request_params.budget or request_params.budget.strip() == "":
+        if (not request_params.budget or 
+            request_params.budget.strip() == "" or 
+            request_params.budget.lower() == "none" or
+            request_params.budget.lower() == "not specified"):
             return "Budget is required to proceed with destination research and feasibility checking. Please specify your budget (e.g., '$2000', '$1000-1500', 'budget-friendly', 'luxury')."
         return None
+    
+    def _validate_origin(self, request_params: DestinationRequest) -> Optional[str]:
+        """Check if origin location is specified and return error message if not"""
+        # Check if origin is provided in the request
+        if (request_params.origin_location and 
+            request_params.origin_location.strip() != "" and 
+            request_params.origin_location.lower() not in ["none", "not specified", "unknown"]):
+            return None
+        
+        # Check if origin is available in user preferences
+        try:
+            preferences = self.preferences_manager.get_comprehensive_recommendations()
+            if preferences and preferences.get("home_airport") and preferences["home_airport"].strip() != "":
+                return None
+        except:
+            pass
+        
+        # If no origin found, return error message
+        return "Origin location is required to proceed with destination research and feasibility checking. Please specify your departure location (e.g., 'SFO', 'New York', 'London', 'LAX')."
     
     def research_destination(self, user_request: str) -> DestinationResearchResult:
         """Main method to research destinations based on user request"""
@@ -685,7 +994,8 @@ class DestinationResearchAgent:
                 travel_recommendations=date_error,
                 user_choice_required=False,
                 date_required=True,
-                budget_required=False
+                budget_required=False,
+                origin_required=False
             )
         
         # Validate budget
@@ -699,7 +1009,23 @@ class DestinationResearchAgent:
                 travel_recommendations=budget_error,
                 user_choice_required=False,
                 date_required=False,
-                budget_required=True
+                budget_required=True,
+                origin_required=False
+            )
+        
+        # Validate origin
+        origin_error = self._validate_origin(request_params)
+        if origin_error:
+            print(f"   ❌ {origin_error}")
+            return DestinationResearchResult(
+                request_type=request_type,
+                primary_destinations=[],
+                alternative_destinations=[],
+                travel_recommendations=origin_error,
+                user_choice_required=False,
+                date_required=False,
+                budget_required=False,
+                origin_required=True
             )
         
         # Route to appropriate research method
