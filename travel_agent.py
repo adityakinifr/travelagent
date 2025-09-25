@@ -113,185 +113,92 @@ class TravelAgent:
         return workflow.compile()
     
     def _parse_request(self, state: AgentState) -> AgentState:
-        """Parse the user's trip request into structured data"""
+        """Parse the user's trip request into structured data using intelligent LLM parsing"""
         user_message = state["messages"][-1].content
         
+        # Use LLM to intelligently parse the request
         prompt = f"""
-        Parse the following trip request and extract the key information:
+        You are an expert travel agent parsing system. Parse the following user request and extract structured information.
         
-        User Request: {user_message}
+        User Request: "{user_message}"
         
-        Extract and structure the following information:
-        - destination: Where they want to go
-        - duration: How long the trip should be
-        - budget: Their budget range
-        - interests: What they're interested in (sightseeing, food, adventure, culture, etc.)
-        - travel_style: Their preferred travel style (budget, luxury, backpacking, etc.)
-        - accommodation_preference: Type of accommodation they prefer
-        - travel_dates: When they want to travel (e.g., "June 2024", "summer", "next month", "March 15-20, 2024")
+        Extract the following information and return it as a JSON object:
+        {{
+            "destination": "Where they want to go (city, country, or region)",
+            "duration": "How long the trip should be (e.g., '3 days', '1 week', '10 days')",
+            "budget": "Their budget range (e.g., '$2000', 'budget-friendly', 'luxury', 'moderate')",
+            "interests": ["List of interests like sightseeing, food, adventure, culture, beach, history, etc."],
+            "travel_style": "Travel style (budget, luxury, backpacking, comfortable, etc.)",
+            "accommodation_preference": "Type of accommodation (hotel, hostel, apartment, resort, etc.)",
+            "travel_dates": "When they want to travel (e.g., 'summer', 'june', 'next month', 'march 2024')",
+            "origin": "Where they're departing from (city, airport code, or region)"
+        }}
         
-        If any information is missing, make reasonable assumptions based on the context.
-        Return the information in a structured format.
+        Guidelines:
+        - If information is missing, make reasonable assumptions based on context
+        - For destinations, be specific with city and country when possible
+        - For small towns/villages, identify the nearest major airport for flight planning
+        - For origins, try to identify the nearest major airport or city
+        - For budgets, interpret relative terms (e.g., 'affordable' = 'budget-friendly', 'splurge' = 'luxury')
+        - For dates, preserve the user's exact wording (don't add years unless specified)
+        - For interests, extract all mentioned activities and preferences
+        - Consider that small destinations may require flying to nearby major airports
+        - Return only valid JSON, no additional text
         """
         
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        
-        # Parse the response to create TripSpecification
-        # For now, we'll use simple parsing - in a real implementation, you'd use more sophisticated parsing
-        content = response.content.lower()
-        user_content = user_message.lower()
-        
-        # Extract destination
-        destination = "Paris, France"  # Default
-        if "paris" in content:
-            destination = "Paris, France"
-        elif "tokyo" in content:
-            destination = "Tokyo, Japan"
-        elif "london" in content:
-            destination = "London, UK"
-        elif "new york" in content:
-            destination = "New York, USA"
-        
-        # Extract duration
-        duration = "5 days"  # Default
-        if "3 days" in content or "3-day" in content:
-            duration = "3 days"
-        elif "7 days" in content or "week" in content:
-            duration = "7 days"
-        elif "10 days" in content:
-            duration = "10 days"
-        
-        # Extract budget
-        budget = None  # Default to None, will be validated later
-        if "$1000" in content or "1000" in content:
-            budget = "$1000"
-        elif "$2000" in content or "2000" in content:
-            budget = "$2000"
-        elif "$3000" in content or "3000" in content:
-            budget = "$3000"
-        elif "$5000" in content or "5000" in content:
-            budget = "$5000"
-        elif "budget" in content and ("friendly" in content or "low" in content):
-            budget = "budget-friendly"
-        elif "luxury" in content:
-            budget = "luxury"
-        
-        # Extract interests
-        interests = ["sightseeing", "food", "culture"]  # Default
-        if "adventure" in content:
-            interests = ["adventure", "outdoor activities"]
-        elif "beach" in content:
-            interests = ["beach", "relaxation"]
-        elif "history" in content:
-            interests = ["history", "museums", "culture"]
-        
-        # Extract travel style
-        travel_style = "comfortable"  # Default
-        if "budget" in content:
-            travel_style = "budget"
-        elif "luxury" in content:
-            travel_style = "luxury"
-        elif "backpacking" in content:
-            travel_style = "backpacking"
-        
-        # Extract accommodation preference
-        accommodation_preference = "hotel"  # Default
-        if "hostel" in content:
-            accommodation_preference = "hostel"
-        elif "airbnb" in content or "apartment" in content:
-            accommodation_preference = "apartment"
-        elif "resort" in content:
-            accommodation_preference = "resort"
-        
-        # Extract travel dates
-        travel_dates = None
-        if "june" in content:
-            travel_dates = "June 2024"
-        elif "july" in content:
-            travel_dates = "July 2024"
-        elif "august" in content:
-            travel_dates = "August 2024"
-        elif "summer" in content:
-            travel_dates = "summer 2024"
-        elif "winter" in content:
-            travel_dates = "winter 2024"
-        elif "spring" in content:
-            travel_dates = "spring 2024"
-        elif "fall" in content or "autumn" in content:
-            travel_dates = "fall 2024"
-        elif "next month" in content:
-            travel_dates = "next month"
-        elif "march" in content:
-            travel_dates = "March 2024"
-        elif "april" in content:
-            travel_dates = "April 2024"
-        elif "may" in content:
-            travel_dates = "May 2024"
-        elif "september" in content:
-            travel_dates = "September 2024"
-        elif "october" in content:
-            travel_dates = "October 2024"
-        elif "november" in content:
-            travel_dates = "November 2024"
-        elif "december" in content:
-            travel_dates = "December 2024"
-        
-        # Extract origin - look for specific origin indicators in user message
-        origin = None
-        if "flying from" in user_content or "departing from" in user_content or "leaving from" in user_content:
-            # Extract origin from phrases like "flying from New York"
-            if "sfo" in user_content or "san francisco" in user_content:
-                origin = "SFO"
-            elif "lax" in user_content or "los angeles" in user_content:
-                origin = "LAX"
-            elif "jfk" in user_content or "lga" in user_content or "new york" in user_content:
-                origin = "NYC"
-            elif "london" in user_content or "lhr" in user_content:
-                origin = "London"
-            elif "paris" in user_content or "cdg" in user_content:
-                origin = "Paris"
-            elif "tokyo" in user_content or "nrt" in user_content:
-                origin = "Tokyo"
-            elif "chicago" in user_content or "ord" in user_content:
-                origin = "Chicago"
-            elif "miami" in user_content or "mia" in user_content:
-                origin = "Miami"
-            elif "seattle" in user_content or "sea" in user_content:
-                origin = "Seattle"
-            elif "boston" in user_content or "bos" in user_content:
-                origin = "Boston"
-        elif "from" in user_content and ("sfo" in user_content or "san francisco" in user_content):
-            origin = "SFO"
-        elif "from" in user_content and ("lax" in user_content or "los angeles" in user_content):
-            origin = "LAX"
-        elif "from" in user_content and ("jfk" in user_content or "lga" in user_content or "new york" in user_content):
-            origin = "NYC"
-        elif "from" in user_content and ("london" in user_content or "lhr" in user_content):
-            origin = "London"
-        elif "from" in user_content and ("tokyo" in user_content or "nrt" in user_content):
-            origin = "Tokyo"
-        elif "from" in user_content and ("chicago" in user_content or "ord" in user_content):
-            origin = "Chicago"
-        elif "from" in user_content and ("miami" in user_content or "mia" in user_content):
-            origin = "Miami"
-        elif "from" in user_content and ("seattle" in user_content or "sea" in user_content):
-            origin = "Seattle"
-        elif "from" in user_content and ("boston" in user_content or "bos" in user_content):
-            origin = "Boston"
-        
-        trip_spec = TripSpecification(
-            destination=destination,
-            duration=duration,
-            budget=budget,
-            interests=interests,
-            travel_style=travel_style,
-            accommodation_preference=accommodation_preference,
-            travel_dates=travel_dates,
-            origin=origin
-        )
+        try:
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+            
+            # Parse the JSON response
+            import json
+            import re
+            
+            # Extract JSON from the response (handle cases where LLM adds extra text)
+            json_match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            if json_match:
+                parsed_data = json.loads(json_match.group())
+            else:
+                # Fallback: try to parse the entire response as JSON
+                parsed_data = json.loads(response.content)
+            
+            # Create TripSpecification with parsed data
+            trip_spec = TripSpecification(
+                destination=parsed_data.get("destination", "Paris, France"),
+                duration=parsed_data.get("duration", "5 days"),
+                budget=parsed_data.get("budget"),
+                interests=parsed_data.get("interests", ["sightseeing", "food", "culture"]),
+                travel_style=parsed_data.get("travel_style", "comfortable"),
+                accommodation_preference=parsed_data.get("accommodation_preference", "hotel"),
+                travel_dates=parsed_data.get("travel_dates"),
+                origin=parsed_data.get("origin")
+            )
+            
+            print(f"   🧠 Intelligently parsed request:")
+            print(f"      Destination: {trip_spec.destination}")
+            print(f"      Duration: {trip_spec.duration}")
+            print(f"      Budget: {trip_spec.budget}")
+            print(f"      Interests: {trip_spec.interests}")
+            print(f"      Travel Style: {trip_spec.travel_style}")
+            print(f"      Accommodation: {trip_spec.accommodation_preference}")
+            print(f"      Travel Dates: {trip_spec.travel_dates}")
+            print(f"      Origin: {trip_spec.origin}")
+            
+        except (json.JSONDecodeError, KeyError, Exception) as e:
+            print(f"   ⚠️  LLM parsing failed, using fallback: {e}")
+            # Fallback to a simple default
+            trip_spec = TripSpecification(
+                destination="Paris, France",
+                duration="5 days",
+                budget=None,
+                interests=["sightseeing", "food", "culture"],
+                travel_style="comfortable",
+                accommodation_preference="hotel",
+                travel_dates=None,
+                origin=None
+            )
         
         state["trip_spec"] = trip_spec
-        state["messages"].append(AIMessage(content=f"Parsed trip request: {trip_spec.destination} for {trip_spec.duration}"))
+        state["messages"].append(AIMessage(content=f"Intelligently parsed trip request: {trip_spec.destination} for {trip_spec.duration}"))
         
         return state
     
