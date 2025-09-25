@@ -7,11 +7,16 @@ A simple LangGraph agent that takes user trip specifications and creates detaile
 - **Structured Trip Planning**: Parses natural language trip requests into structured data
 - **Multi-step Workflow**: Uses LangGraph to create a sophisticated planning pipeline
 - **Destination Research**: Researches destinations and provides relevant information
+- **Feasibility Validation**: Checks flight availability, hotel availability, and budget constraints
+- **Intelligent Backtracking**: Automatically suggests alternatives when destinations aren't feasible
+- **Budget Optimization**: Smart budget allocation based on traveler type and preferences
 - **Detailed Itineraries**: Creates day-by-day itineraries with activities, meals, and costs
 - **Budget-Aware**: Considers budget constraints in itinerary planning
 - **Flexible Input**: Accepts natural language trip descriptions
 - **Real Travel Data**: Integrates with flight and hotel search tools
 - **Multi-Provider Search**: Searches multiple travel providers for best options
+- **Preference Integration**: Considers hotel chains, airline alliances, and travel preferences
+- **Alternative Suggestions**: Provides backup options when primary recommendations fail
 
 ## Architecture
 
@@ -21,11 +26,13 @@ The system uses a **multi-agent architecture** with specialized agents:
 The primary agent orchestrates the workflow through these nodes:
 
 1. **Parse Request**: Extracts structured information from natural language input
-2. **Research Destination**: Uses specialized Destination Research Agent
-3. **Select Destination**: Handles user choice when multiple destinations are available
-4. **Search Travel Options**: Searches for flights and hotels
-5. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
-6. **Refine Itinerary**: Reviews and improves the itinerary
+2. **Research Destination**: Uses specialized Destination Research Agent with feasibility checking
+3. **Feasibility Check**: Validates destinations against real-world constraints
+4. **Backtracking**: Generates alternatives when destinations aren't feasible
+5. **Select Destination**: Handles user choice when multiple destinations are available
+6. **Search Travel Options**: Searches for flights and hotels
+7. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
+8. **Refine Itinerary**: Reviews and improves the itinerary
 
 ### Destination Research Agent
 A specialized agent that handles various types of destination requests:
@@ -43,55 +50,208 @@ A specialized agent that handles various types of destination requests:
 - Provides up-to-date travel requirements and advisories
 - Offers multiple destination options with comparisons
 - Extracts structured data from natural language responses
+- **Feasibility Validation**: Checks flight availability, hotel availability, and budget constraints
+- **Intelligent Backtracking**: Generates alternatives when destinations aren't feasible
+- **Preference Integration**: Considers hotel chains, airline alliances, and travel preferences
+- **Budget Optimization**: Smart budget allocation based on traveler type
 
 ### Workflow Diagram
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   Parse Request │───▶│ Destination      │───▶│ Select Destination  │
+│   Parse Request │───▶│ Destination      │───▶│ Feasibility Check   │
 │                 │    │ Research Agent   │    │                     │
-│ • Extract trip  │    │                  │    │ • Multiple options  │
-│   details       │    │ • Specific:      │    │ • User choice       │
-│ • Structure     │    │   "Paris"        │    │ • Confirmation      │
-│   data          │    │ • Abstract:      │    │ • Proceed with      │
-│ • Validate      │    │   "Beach near    │    │   selection         │
+│ • Extract trip  │    │                  │    │ • Flight availability│
+│   details       │    │ • Specific:      │    │ • Hotel availability│
+│ • Structure     │    │   "Paris"        │    │ • Budget validation │
+│   data          │    │ • Abstract:      │    │ • Constraint check  │
+│ • Validate      │    │   "Beach near    │    │ • Feasibility score │
 └─────────────────┘    │    SFO"          │    └─────────────────────┘
                        │ • Multi-location │              │
                        │ • Constrained    │              ▼
                        └──────────────────┘    ┌─────────────────────┐
-                                                │ Search Travel       │
-                                                │ Options             │
+                                                │ Feasible?           │
                                                 │                     │
-                                                │ • Amadeus API       │
-                                                │ • SerpAPI           │
-                                                │ • FlightsAPI.io     │
-                                                │ • Real-time data    │
-                                                │ • Price comparison  │
+                                                │ • Score ≥ 0.6?      │
+                                                │ • All constraints   │
+                                                │   met?              │
+                                                │ • Within budget?    │
+                                                └─────────────────────┘
+                                                           │
+                                                           ▼
+                                                ┌─────────────────────┐
+                                                │ Decision Point      │
+                                                │                     │
+                                                │ ✅ Feasible         │
+                                                │ ❌ Not Feasible     │
                                                 └─────────────────────┘
                                                            │
                                                            ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   Refine        │◀───│ Create           │◀───│ Travel Options      │
-│   Itinerary     │    │ Itinerary        │    │ Results             │
-│                 │    │                  │    │                     │
-│ • Review flow   │    │ • Day-by-day     │    │ • Flight options    │
-│ • Check timing  │    │   activities     │    │ • Hotel options     │
-│ • Add tips      │    │ • Meal plans     │    │ • Car rental        │
-│ • Final polish  │    │ • Transportation │    │   options           │
-│                 │    │ • Cost estimates │    │ • Integrated into   │
-└─────────────────┘    │ • Travel options │    │   recommendations   │
-                       └──────────────────┘    └─────────────────────┘
+│   Backtracking  │◀───│ Generate         │◀───│ Not Feasible        │
+│   & Alternatives│    │ Alternatives     │    │                     │
+│                 │    │                  │    │ • Analyze issues     │
+│ • Alternative   │    │ • Nearby         │    │ • Identify problems │
+│   destinations  │    │   destinations   │    │ • Calculate costs    │
+│ • Budget        │    │ • Budget         │    │ • Check constraints │
+│   adjustments   │    │   adjustments    │    │ • Generate report   │
+│ • Constraint    │    │ • Constraint     │    └─────────────────────┘
+│   modifications │    │   modifications  │              │
+└─────────────────┘    └──────────────────┘              │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│ Select Destination│───▶│ Search Travel    │───▶│ Create Itinerary   │
+│                 │    │ Options          │    │                     │
+│ • Multiple      │    │                  │    │ • Day-by-day        │
+│   options       │    │ • Amadeus API    │    │   activities        │
+│ • User choice   │    │ • SerpAPI        │    │ • Meal plans        │
+│ • Confirmation  │    │ • FlightsAPI.io  │    │ • Transportation    │
+│ • Proceed with  │    │ • Real-time data │    │ • Cost estimates    │
+│   selection     │    │ • Price          │    │ • Travel options    │
+└─────────────────┘    │   comparison     │    └─────────────────────┘
+                       └──────────────────┘              │
+                                                         ▼
+                                                ┌─────────────────────┐
+                                                │ Refine Itinerary    │
+                                                │                     │
+                                                │ • Review flow       │
+                                                │ • Check timing      │
+                                                │ • Add tips          │
+                                                │ • Final polish      │
+                                                │ • Feasibility       │
+                                                │   validation        │
+                                                └─────────────────────┘
 ```
 
 ### Data Flow
 
 ```
-User Input → Parse → Research → Search APIs → Create → Refine → Final Itinerary
-    │           │        │         │          │        │
-    ▼           ▼        ▼         ▼          ▼        ▼
-Natural    Structured  Destination  Real      Detailed  Polished
-Language   Trip Data   Information  Travel    Itinerary Itinerary
-Request               & Context     Options   with Data
+User Input → Parse → Research → Feasibility → Decision → Search APIs → Create → Refine → Final Itinerary
+    │           │        │         │            │         │          │        │
+    ▼           ▼        ▼         ▼            ▼         ▼          ▼        ▼
+Natural    Structured  Destination  Feasibility  Feasible/  Real      Detailed  Polished
+Language   Trip Data   Information  Check        Not        Travel    Itinerary Itinerary
+Request               & Context     & Scoring    Feasible   Options   with Data
+                                                           │
+                                                           ▼
+                                                    ┌─────────────────┐
+                                                    │ Backtracking    │
+                                                    │                 │
+                                                    │ • Alternatives  │
+                                                    │ • Budget        │
+                                                    │   adjustments   │
+                                                    │ • Constraint    │
+                                                    │   modifications │
+                                                    └─────────────────┘
+```
+
+## Feasibility Checking & Backtracking System
+
+The system now includes comprehensive feasibility validation and intelligent backtracking to ensure all recommendations are realistic and bookable.
+
+### Feasibility Validation Process
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│ Destination     │───▶│ Flight           │───▶│ Hotel               │
+│ Research        │    │ Feasibility      │    │ Feasibility         │
+│                 │    │                  │    │                     │
+│ • Multiple      │    │ • Availability   │    │ • Availability      │
+│   destinations  │    │ • Cost check     │    │ • Cost check        │
+│ • Preferences   │    │ • Airline        │    │ • Chain preference  │
+│ • Constraints   │    │   preferences    │    │ • Amenities         │
+└─────────────────┘    │ • Red-eye        │    │ • Traveler type     │
+                       │   preferences    │    └─────────────────────┘
+                       └──────────────────┘              │
+                                                         ▼
+                                                ┌─────────────────────┐
+                                                │ Budget Validation   │
+                                                │                     │
+                                                │ • Total cost        │
+                                                │ • Allocation check  │
+                                                │ • Traveler type     │
+                                                │   adjustments       │
+                                                └─────────────────────┘
+                                                         │
+                                                         ▼
+                                                ┌─────────────────────┐
+                                                │ Feasibility Score   │
+                                                │                     │
+                                                │ • 0.0 - 1.0 scale   │
+                                                │ • Weighted factors  │
+                                                │ • Threshold check   │
+                                                │ • Decision point    │
+                                                └─────────────────────┘
+```
+
+### Backtracking & Alternative Generation
+
+When destinations are not feasible, the system intelligently backtracks:
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│ Not Feasible    │───▶│ Issue Analysis   │───▶│ Alternative         │
+│                 │    │                  │    │ Generation          │
+│ • Score < 0.6   │    │ • Flight issues  │    │                     │
+│ • Budget        │    │ • Hotel issues   │    │ • Nearby            │
+│   exceeded      │    │ • Cost problems  │    │   destinations      │
+│ • No            │    │ • Constraint     │    │ • Similar           │
+│   availability  │    │   violations     │    │   alternatives      │
+└─────────────────┘    └──────────────────┘    │ • Budget            │
+                                                │   adjustments       │
+                                                │ • Constraint        │
+                                                │   modifications     │
+                                                └─────────────────────┘
+                                                         │
+                                                         ▼
+                                                ┌─────────────────────┐
+                                                │ Budget Adjustment   │
+                                                │ Suggestions         │
+                                                │                     │
+                                                │ • Required          │
+                                                │   increase          │
+                                                │ • Percentage        │
+                                                │   increase          │
+                                                │ • Suggested         │
+                                                │   new budget        │
+                                                │ • Alternative       │
+                                                │   destinations      │
+                                                └─────────────────────┘
+```
+
+### Feasibility Scoring Algorithm
+
+The system uses a weighted scoring algorithm:
+
+- **Flight Availability**: 40% weight
+- **Hotel Availability**: 30% weight  
+- **Budget Compliance**: 20% weight
+- **Constraint Satisfaction**: 10% weight
+
+**Scoring Thresholds:**
+- **0.8-1.0**: Excellent feasibility ✅
+- **0.6-0.8**: Good feasibility ✅
+- **0.4-0.6**: Moderate feasibility ⚠️ (may need adjustments)
+- **0.0-0.4**: Poor feasibility ❌ (alternatives recommended)
+
+### Budget Allocation by Traveler Type
+
+```
+Business Travelers:    60% Flights, 40% Hotels
+Family Travelers:      40% Flights, 50% Hotels
+Leisure Travelers:     50% Flights, 35% Hotels
++ 10% Contingency Buffer for all types
+```
+
+### Alternative Destination Logic
+
+The system provides intelligent alternatives based on origin:
+
+```
+SFO Origin:  Monterey, Carmel, Napa Valley, Lake Tahoe, Santa Barbara, San Diego
+NYC Origin:  Boston, Washington DC, Philadelphia, Montreal, Toronto, Miami
+LAX Origin:  San Diego, Las Vegas, San Francisco, Phoenix, Seattle, Portland
 ```
 
 ## Travel Tools
@@ -224,6 +384,16 @@ python example_usage.py interactive
 ```bash
 # Test Destination Research Agent
 python test_destination_agent.py
+
+# Test Feasibility System
+python test_feasibility_system.py
+python test_feasibility_simple.py
+
+# Test Preferences System
+python test_preferences_system.py
+
+# Test Destination Selection Workflow
+python test_destination_selection.py
 
 # Test real APIs
 python test_real_apis.py
