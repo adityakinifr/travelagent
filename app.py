@@ -78,24 +78,49 @@ class PlanningSession:
                 seasonal_preferences=None
             )
 
+            # Check if budget needs default
+            if not self.request_data.get('budget', '').strip():
+                yield {
+                    'type': 'progress_update',
+                    'message': 'No budget specified, using luxury as default',
+                    'details': 'Setting budget to luxury for premium travel options'
+                }
+
             # Step 2: Research destinations
             self.current_step = 2
             yield {
                 'type': 'step',
                 'step': 2,
-                'message': 'Researching destinations and checking feasibility...',
-                'details': f"Searching for destinations matching: {destination_request.query}",
-                'substeps': [
-                    'Performing web search for destination options',
-                    'Scoring destinations by criteria relevance',
-                    'Checking flight availability and pricing',
-                    'Validating budget constraints',
-                    'Assessing destination feasibility'
-                ]
+                'message': 'Starting destination research...',
+                'details': f"Analyzing request: {destination_request.query}",
+                'substeps': ['Initializing destination research agent']
+            }
+
+            # Show web search progress
+            yield {
+                'type': 'progress_update',
+                'message': 'Performing web search for destination options...',
+                'details': 'Searching travel websites and databases'
             }
 
             # Research destinations
             destination_research = self.travel_agent.destination_agent.research_destination_with_feasibility(destination_request)
+
+            # Show results found
+            num_destinations = len(destination_research.primary_destinations) if destination_research.primary_destinations else 0
+            yield {
+                'type': 'progress_update',
+                'message': f'Found {num_destinations} destination options',
+                'details': f'Evaluating destinations based on your criteria'
+            }
+
+            if destination_research.primary_destinations:
+                destination_names = [dest.name for dest in destination_research.primary_destinations[:3]]
+                yield {
+                    'type': 'progress_update',
+                    'message': f'Top destinations: {", ".join(destination_names)}',
+                    'details': 'Checking feasibility and pricing for each option'
+                }
 
             # Check if user input is required
             if destination_research.date_required:
@@ -196,11 +221,41 @@ class PlanningSession:
                 origin=self.request_data.get('origin', '')
             )
 
+            # Show flight search progress
+            yield {
+                'type': 'progress_update',
+                'message': 'Searching for flight options...',
+                'details': f'Checking flights from {trip_spec.origin} to {trip_spec.destination}'
+            }
+
             # Search travel options
             travel_options = self.travel_agent._search_travel_options({
                 'trip_spec': trip_spec,
                 'destination_research': destination_research
             })
+
+            # Show flight results
+            num_flights = len(travel_options.get('flights', []))
+            yield {
+                'type': 'progress_update',
+                'message': f'Found {num_flights} flight options',
+                'details': 'Comparing prices and schedules'
+            }
+
+            # Show hotel search progress
+            yield {
+                'type': 'progress_update',
+                'message': 'Searching for hotel accommodations...',
+                'details': f'Finding hotels in {trip_spec.destination}'
+            }
+
+            # Show hotel results
+            num_hotels = len(travel_options.get('hotels', []))
+            yield {
+                'type': 'progress_update',
+                'message': f'Found {num_hotels} hotel options',
+                'details': 'Evaluating amenities and pricing'
+            }
 
             # Step 5: Create itinerary
             self.current_step = 5
@@ -218,12 +273,26 @@ class PlanningSession:
                 ]
             }
 
+            # Show itinerary creation progress
+            yield {
+                'type': 'progress_update',
+                'message': 'Analyzing your preferences and travel options...',
+                'details': 'Personalizing recommendations based on your profile'
+            }
+
             # Create itinerary
             itinerary = self.travel_agent._create_itinerary({
                 'trip_spec': trip_spec,
                 'travel_options': travel_options,
                 'destination_research': destination_research
             })
+
+            # Show itinerary completion
+            yield {
+                'type': 'progress_update',
+                'message': 'Itinerary created successfully!',
+                'details': 'Finalizing your personalized travel plan'
+            }
 
             # Store results
             self.results = {

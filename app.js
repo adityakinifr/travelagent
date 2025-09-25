@@ -466,6 +466,9 @@ class TravelAgentApp {
             case 'step':
                 this.updateStep(data.step, data.message, data.details, data.substeps);
                 break;
+            case 'progress_update':
+                this.updateProgressMessage(data.message, data.details);
+                break;
             case 'user_input_required':
                 await this.handleUserInputRequired(data);
                 break;
@@ -524,6 +527,28 @@ class TravelAgentApp {
                     <ul class="substeps-list">
                         ${substeps.map(substep => `<li><i class="fas fa-clock"></i> ${substep}</li>`).join('')}
                     </ul>
+                </div>
+            `;
+        }
+
+        content.innerHTML = progressHTML;
+    }
+
+    updateProgressMessage(message, details = null) {
+        // Update progress content with real-time message
+        const content = document.getElementById('progress-content');
+        let progressHTML = `
+            <div class="status-message status-info">
+                <i class="fas fa-spinner fa-spin"></i>
+                ${message}
+            </div>
+        `;
+
+        if (details) {
+            progressHTML += `
+                <div class="progress-details">
+                    <h4><i class="fas fa-info-circle"></i> Current Activity</h4>
+                    <p>${details}</p>
                 </div>
             `;
         }

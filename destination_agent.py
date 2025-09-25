@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+import re
 from preferences_manager import PreferencesManager
 from feasibility_checker import FeasibilityChecker
 
@@ -926,19 +927,105 @@ class DestinationResearchAgent:
             user_choice_required=len(all_destinations) > 1
         )
     
+    def _parse_smart_dates(self, date_input: str) -> str:
+        """Parse date input intelligently based on current date"""
+        if not date_input or date_input.strip() == "":
+            return date_input
+        
+        date_input = date_input.strip().lower()
+        current_date = datetime.now()
+        current_year = current_date.year
+        current_month = current_date.month
+        
+        # If already has a year, return as is
+        if re.search(r'\b(20\d{2})\b', date_input):
+            return date_input
+        
+        # Handle seasons
+        season_mappings = {
+            'spring': {'months': [3, 4, 5], 'name': 'Spring'},
+            'summer': {'months': [6, 7, 8], 'name': 'Summer'},
+            'fall': {'months': [9, 10, 11], 'name': 'Fall'},
+            'autumn': {'months': [9, 10, 11], 'name': 'Fall'},
+            'winter': {'months': [12, 1, 2], 'name': 'Winter'}
+        }
+        
+        for season, info in season_mappings.items():
+            if season in date_input:
+                # Check if we're currently in this season
+                if current_month in info['months']:
+                    # We're in the season, use next year
+                    return f"{info['name']} {current_year + 1}"
+                else:
+                    # We're not in the season, check if it's coming up this year
+                    next_season_month = min([m for m in info['months'] if m > current_month], default=min(info['months']))
+                    if next_season_month > current_month:
+                        # Season is coming up this year
+                        return f"{info['name']} {current_year}"
+                    else:
+                        # Season already passed this year, use next year
+                        return f"{info['name']} {current_year + 1}"
+        
+        # Handle months
+        month_mappings = {
+            'january': 1, 'jan': 1,
+            'february': 2, 'feb': 2,
+            'march': 3, 'mar': 3,
+            'april': 4, 'apr': 4,
+            'may': 5,
+            'june': 6, 'jun': 6,
+            'july': 7, 'jul': 7,
+            'august': 8, 'aug': 8,
+            'september': 9, 'sep': 9, 'sept': 9,
+            'october': 10, 'oct': 10,
+            'november': 11, 'nov': 11,
+            'december': 12, 'dec': 12
+        }
+        
+        for month_name, month_num in month_mappings.items():
+            if month_name in date_input:
+                if month_num > current_month:
+                    # Month is coming up this year
+                    return f"{month_name.title()} {current_year}"
+                else:
+                    # Month already passed this year, use next year
+                    return f"{month_name.title()} {current_year + 1}"
+        
+        # Handle relative terms
+        if 'next month' in date_input:
+            next_month = current_date.replace(day=1) + timedelta(days=32)
+            next_month = next_month.replace(day=1)
+            return next_month.strftime("%B %Y")
+        
+        if 'next year' in date_input:
+            return f"{current_year + 1}"
+        
+        if 'this year' in date_input:
+            return f"{current_year}"
+        
+        # If no specific pattern matched, return original
+        return date_input
+
     def _validate_travel_dates(self, request_params: DestinationRequest) -> Optional[str]:
         """Check if travel dates are specified and return error message if not"""
         if not request_params.travel_dates or request_params.travel_dates.strip() == "":
             return "Travel dates are required to proceed with destination research and feasibility checking. Please specify your travel dates (e.g., 'June 2024', 'summer', 'next month', 'March 15-20, 2024')."
+        
+        # Parse the dates intelligently
+        parsed_dates = self._parse_smart_dates(request_params.travel_dates)
+        request_params.travel_dates = parsed_dates
+        
         return None
     
     def _validate_budget(self, request_params: DestinationRequest) -> Optional[str]:
-        """Check if budget is specified and return error message if not"""
+        """Check if budget is specified and set default to luxury if not"""
         if (not request_params.budget or 
             request_params.budget.strip() == "" or 
             request_params.budget.lower() == "none" or
             request_params.budget.lower() == "not specified"):
-            return "Budget is required to proceed with destination research and feasibility checking. Please specify your budget (e.g., '$2000', '$1000-1500', 'budget-friendly', 'luxury')."
+            # Set default budget to luxury
+            request_params.budget = "luxury"
+            print(f"   💰 No budget specified, using default: luxury")
         return None
     
     def _validate_origin(self, request_params: DestinationRequest) -> Optional[str]:

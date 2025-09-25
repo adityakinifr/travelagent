@@ -215,26 +215,118 @@ class FeasibilityChecker:
             }
     
     def _parse_travel_dates(self, travel_dates: str) -> Tuple[str, str]:
-        """Parse travel dates into departure and return dates"""
+        """Parse travel dates into departure and return dates using smart date logic"""
         # Default to 7 days from now for departure, 10 days from now for return
         base_date = datetime.now() + timedelta(days=7)
+        current_year = datetime.now().year
+        current_month = datetime.now().month
         
+        # Handle seasons with smart year logic
         if "summer" in travel_dates.lower():
-            # Summer 2024
-            departure_date = "2024-06-15"
-            return_date = "2024-06-22"
+            # Check if we're currently in summer (June-August)
+            if current_month in [6, 7, 8]:
+                # We're in summer, use next year
+                year = current_year + 1
+            else:
+                # Check if summer is coming up this year
+                if current_month < 6:
+                    year = current_year  # Summer is coming up
+                else:
+                    year = current_year + 1  # Summer already passed
+            departure_date = f"{year}-06-15"
+            return_date = f"{year}-06-22"
+            
         elif "winter" in travel_dates.lower():
-            # Winter 2024
-            departure_date = "2024-12-15"
-            return_date = "2024-12-22"
+            # Check if we're currently in winter (Dec, Jan, Feb)
+            if current_month in [12, 1, 2]:
+                # We're in winter, use next year
+                year = current_year + 1
+            else:
+                # Check if winter is coming up this year
+                if current_month < 12:
+                    year = current_year  # Winter is coming up
+                else:
+                    year = current_year + 1  # Winter already passed
+            departure_date = f"{year}-12-15"
+            return_date = f"{year}-12-22"
+            
         elif "spring" in travel_dates.lower():
-            # Spring 2024
-            departure_date = "2024-04-15"
-            return_date = "2024-04-22"
+            # Check if we're currently in spring (March-May)
+            if current_month in [3, 4, 5]:
+                # We're in spring, use next year
+                year = current_year + 1
+            else:
+                # Check if spring is coming up this year
+                if current_month < 3:
+                    year = current_year  # Spring is coming up
+                else:
+                    year = current_year + 1  # Spring already passed
+            departure_date = f"{year}-04-15"
+            return_date = f"{year}-04-22"
+            
         elif "fall" in travel_dates.lower() or "autumn" in travel_dates.lower():
-            # Fall 2024
-            departure_date = "2024-10-15"
-            return_date = "2024-10-22"
+            # Check if we're currently in fall (September-November)
+            if current_month in [9, 10, 11]:
+                # We're in fall, use next year
+                year = current_year + 1
+            else:
+                # Check if fall is coming up this year
+                if current_month < 9:
+                    year = current_year  # Fall is coming up
+                else:
+                    year = current_year + 1  # Fall already passed
+            departure_date = f"{year}-10-15"
+            return_date = f"{year}-10-22"
+            
+        # Handle specific months
+        elif "june" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 6 else current_year
+            departure_date = f"{year}-06-15"
+            return_date = f"{year}-06-22"
+        elif "july" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 7 else current_year
+            departure_date = f"{year}-07-15"
+            return_date = f"{year}-07-22"
+        elif "august" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 8 else current_year
+            departure_date = f"{year}-08-15"
+            return_date = f"{year}-08-22"
+        elif "december" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 12 else current_year
+            departure_date = f"{year}-12-15"
+            return_date = f"{year}-12-22"
+        elif "march" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 3 else current_year
+            departure_date = f"{year}-03-15"
+            return_date = f"{year}-03-22"
+        elif "april" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 4 else current_year
+            departure_date = f"{year}-04-15"
+            return_date = f"{year}-04-22"
+        elif "may" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 5 else current_year
+            departure_date = f"{year}-05-15"
+            return_date = f"{year}-05-22"
+        elif "september" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 9 else current_year
+            departure_date = f"{year}-09-15"
+            return_date = f"{year}-09-22"
+        elif "october" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 10 else current_year
+            departure_date = f"{year}-10-15"
+            return_date = f"{year}-10-22"
+        elif "november" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 11 else current_year
+            departure_date = f"{year}-11-15"
+            return_date = f"{year}-11-22"
+        elif "january" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 1 else current_year
+            departure_date = f"{year}-01-15"
+            return_date = f"{year}-01-22"
+        elif "february" in travel_dates.lower():
+            year = current_year + 1 if current_month >= 2 else current_year
+            departure_date = f"{year}-02-15"
+            return_date = f"{year}-02-22"
         else:
             # Default to 7 days from now
             departure_date = base_date.strftime("%Y-%m-%d")
