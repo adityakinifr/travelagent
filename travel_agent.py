@@ -87,6 +87,7 @@ class TravelAgent:
         # Add nodes
         workflow.add_node("parse_request", self._parse_request)
         workflow.add_node("research_destination", self._research_destination)
+        workflow.add_node("select_destination", self._select_destination)
         workflow.add_node("search_travel_options", self._search_travel_options)
         workflow.add_node("create_itinerary", self._create_itinerary)
         workflow.add_node("refine_itinerary", self._refine_itinerary)
@@ -94,7 +95,8 @@ class TravelAgent:
         # Add edges
         workflow.set_entry_point("parse_request")
         workflow.add_edge("parse_request", "research_destination")
-        workflow.add_edge("research_destination", "search_travel_options")
+        workflow.add_edge("research_destination", "select_destination")
+        workflow.add_edge("select_destination", "search_travel_options")
         workflow.add_edge("search_travel_options", "create_itinerary")
         workflow.add_edge("create_itinerary", "refine_itinerary")
         workflow.add_edge("refine_itinerary", END)
@@ -163,6 +165,54 @@ class TravelAgent:
         state["messages"].append(AIMessage(content=f"Destination research completed for {trip_spec.destination}"))
         
         return state
+    
+    def _select_destination(self, state: AgentState) -> AgentState:
+        """Handle destination selection if multiple options are available"""
+        destination_research = state.get("destination_research")
+        
+        if not destination_research:
+            state["messages"].append(AIMessage(content="No destination research available"))
+            return state
+        
+        # If only one destination or user choice not required, proceed
+        if not destination_research.user_choice_required or len(destination_research.primary_destinations) <= 1:
+            selected_destination = destination_research.primary_destinations[0] if destination_research.primary_destinations else None
+            if selected_destination:
+                state["messages"].append(AIMessage(content=f"Proceeding with {selected_destination.name}"))
+            return state
+        
+        # Multiple destinations available - ask user to choose
+        choice_prompt = destination_research.choice_prompt or self._generate_destination_choice_prompt(destination_research)
+        
+        # Add the choice prompt to messages
+        state["messages"].append(AIMessage(content=choice_prompt))
+        
+        # For now, we'll select the first destination as default
+        # In a real implementation, this would wait for user input
+        selected_destination = destination_research.primary_destinations[0]
+        state["messages"].append(AIMessage(content=f"Selected destination: {selected_destination.name}"))
+        
+        return state
+    
+    def _generate_destination_choice_prompt(self, destination_research: DestinationResearchResult) -> str:
+        """Generate a user-friendly prompt for destination selection"""
+        destinations = destination_research.primary_destinations
+        
+        prompt = f"\n\n🎯 **Destination Selection Required**\n"
+        prompt += f"I found {len(destinations)} destination options for you. Please choose which one you'd like to proceed with:\n\n"
+        
+        for i, dest in enumerate(destinations, 1):
+            prompt += f"**{i}. {dest.name}**\n"
+            prompt += f"   📍 {dest.country}, {dest.region}\n"
+            prompt += f"   📝 {dest.description}\n"
+            prompt += f"   ⭐ Why recommended: {dest.why_recommended}\n"
+            if dest.key_attractions:
+                prompt += f"   🏛️ Top attractions: {', '.join(dest.key_attractions[:3])}\n"
+            prompt += "\n"
+        
+        prompt += f"Please respond with the number (1-{len(destinations)}) of your preferred destination, or provide more details about what you're looking for to help me narrow down the options.\n"
+        
+        return prompt
     
     def _search_travel_options(self, state: AgentState) -> AgentState:
         """Search for flights, hotels, and car rentals"""

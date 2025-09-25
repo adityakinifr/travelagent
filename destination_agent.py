@@ -23,6 +23,11 @@ class DestinationRequest(BaseModel):
     budget: Optional[str] = None
     interests: List[str] = []
     travel_style: Optional[str] = None
+    traveler_type: Optional[str] = None  # "family_with_kids", "couple", "solo", "older_adults", "group_friends", "business"
+    group_size: Optional[int] = None
+    age_range: Optional[str] = None  # "young_adults", "middle_aged", "seniors", "mixed_ages"
+    mobility_requirements: Optional[str] = None  # "wheelchair_accessible", "limited_mobility", "active", "any"
+    seasonal_preferences: Optional[str] = None  # "summer", "winter", "spring", "fall", "any"
 
 class DestinationOption(BaseModel):
     """Structure for destination options"""
@@ -41,6 +46,15 @@ class DestinationOption(BaseModel):
     currency: str
     safety_rating: str
     why_recommended: str
+    family_friendly_score: Optional[int] = None  # 1-10 scale
+    kid_friendly_activities: List[str] = []
+    senior_friendly_features: List[str] = []
+    accessibility_features: List[str] = []
+    seasonal_highlights: Dict[str, str] = {}  # season -> highlights
+    crowd_levels: Optional[str] = None  # "low", "moderate", "high", "peak"
+    nightlife_rating: Optional[str] = None  # "none", "limited", "moderate", "vibrant"
+    romantic_appeal: Optional[str] = None  # "low", "moderate", "high"
+    business_friendly: Optional[bool] = None
 
 class DestinationResearchResult(BaseModel):
     """Structure for destination research results"""
@@ -49,6 +63,8 @@ class DestinationResearchResult(BaseModel):
     alternative_destinations: List[DestinationOption]
     travel_recommendations: str
     comparison_summary: Optional[str] = None
+    user_choice_required: bool = False
+    choice_prompt: Optional[str] = None
 
 class DestinationResearchAgent:
     """Specialized agent for destination research and recommendation"""
@@ -112,6 +128,87 @@ class DestinationResearchAgent:
         
         return "\n\n".join(web_results) if web_results else ""
     
+    def _validate_destination_constraints(self, destinations: List[DestinationOption], request: DestinationRequest) -> List[DestinationOption]:
+        """Validate that destinations meet the specified constraints"""
+        print(f"🔍 Validating {len(destinations)} destinations against constraints...")
+        print(f"   Origin: {request.origin_location}")
+        print(f"   Max travel time: {request.max_travel_time}")
+        
+        if not request.max_travel_time or not request.origin_location:
+            print("   ⚠️ No constraints specified, returning all destinations")
+            return destinations
+        
+        # Parse travel time constraint (e.g., "3 hours" -> 3)
+        try:
+            time_parts = request.max_travel_time.lower().split()
+            max_hours = None
+            for part in time_parts:
+                if part.isdigit():
+                    max_hours = int(part)
+                    break
+            if not max_hours:
+                print("   ⚠️ Could not parse travel time, returning all destinations")
+                return destinations
+            print(f"   📏 Parsed max travel time: {max_hours} hours")
+        except:
+            print("   ⚠️ Error parsing travel time, returning all destinations")
+            return destinations
+        
+        # Common travel time mappings for major origins
+        origin = request.origin_location.upper()
+        valid_destinations = []
+        
+        # More comprehensive invalid destination lists
+        invalid_destinations_sfo = [
+            'GREECE', 'HYDRA', 'EUROPE', 'FRANCE', 'ITALY', 'SPAIN', 'GERMANY', 'PORTUGAL',
+            'ASIA', 'JAPAN', 'CHINA', 'KOREA', 'THAILAND', 'SINGAPORE', 'VIETNAM', 'INDIA',
+            'AUSTRALIA', 'NEW ZEALAND', 'AFRICA', 'SOUTH AMERICA', 'BRAZIL', 'ARGENTINA',
+            'RUSSIA', 'TURKEY', 'ISRAEL', 'EGYPT', 'MOROCCO', 'SOUTH AFRICA'
+        ]
+        
+        invalid_destinations_nyc = [
+            'EUROPE', 'FRANCE', 'ITALY', 'SPAIN', 'GERMANY', 'GREECE', 'PORTUGAL', 'NETHERLANDS',
+            'ASIA', 'JAPAN', 'CHINA', 'KOREA', 'THAILAND', 'SINGAPORE', 'VIETNAM', 'INDIA',
+            'AUSTRALIA', 'NEW ZEALAND', 'AFRICA', 'SOUTH AMERICA', 'BRAZIL', 'ARGENTINA',
+            'RUSSIA', 'TURKEY', 'ISRAEL', 'EGYPT', 'MOROCCO', 'SOUTH AFRICA'
+        ]
+        
+        for dest in destinations:
+            dest_name = dest.name.upper()
+            dest_country = dest.country.upper() if dest.country else ""
+            dest_region = dest.region.upper() if dest.region else ""
+            
+            print(f"   🔍 Checking: {dest.name} ({dest.country}, {dest.region})")
+            
+            is_valid = True
+            
+            # Check for obviously invalid destinations based on origin
+            if origin in ['SFO', 'SAN FRANCISCO', 'CALIFORNIA']:
+                # Check name, country, and region
+                all_dest_text = f"{dest_name} {dest_country} {dest_region}"
+                
+                if any(invalid in all_dest_text for invalid in invalid_destinations_sfo):
+                    is_valid = False
+                    print(f"   ❌ Filtered out {dest.name} - not within {request.max_travel_time} of {request.origin_location}")
+                    print(f"      Matched invalid term in: {all_dest_text}")
+            
+            elif origin in ['NYC', 'NEW YORK', 'JFK', 'LGA']:
+                # Check name, country, and region
+                all_dest_text = f"{dest_name} {dest_country} {dest_region}"
+                
+                if any(invalid in all_dest_text for invalid in invalid_destinations_nyc):
+                    is_valid = False
+                    print(f"   ❌ Filtered out {dest.name} - not within {request.max_travel_time} of {request.origin_location}")
+                    print(f"      Matched invalid term in: {all_dest_text}")
+            
+            if is_valid:
+                valid_destinations.append(dest)
+                print(f"   ✅ Valid: {dest.name}")
+        
+        print(f"   📊 Validation complete: {len(valid_destinations)}/{len(destinations)} destinations passed")
+        return valid_destinations
+    
+    
     def analyze_request_type(self, user_request: str) -> str:
         """Analyze the type of destination request"""
         prompt = f"""
@@ -146,7 +243,12 @@ class DestinationResearchAgent:
             "travel_dates": "Travel dates if mentioned (e.g., 'June 2024', 'summer', 'next month')",
             "budget": "Budget constraints if mentioned (e.g., '$2000', 'budget-friendly', 'luxury')",
             "interests": ["List of interests mentioned (e.g., 'beaches', 'history', 'food')"],
-            "travel_style": "Travel style if mentioned (e.g., 'relaxing', 'adventure', 'cultural')"
+            "travel_style": "Travel style if mentioned (e.g., 'relaxing', 'adventure', 'cultural')",
+            "traveler_type": "Type of travelers if mentioned (e.g., 'family_with_kids', 'couple', 'solo', 'older_adults', 'group_friends', 'business')",
+            "group_size": "Number of people traveling if mentioned (e.g., 2, 4, 6)",
+            "age_range": "Age range if mentioned (e.g., 'young_adults', 'middle_aged', 'seniors', 'mixed_ages')",
+            "mobility_requirements": "Mobility needs if mentioned (e.g., 'wheelchair_accessible', 'limited_mobility', 'active', 'any')",
+            "seasonal_preferences": "Season preference if mentioned (e.g., 'summer', 'winter', 'spring', 'fall', 'any')"
         }}
         
         If a field is not mentioned, use null. Be specific and accurate.
@@ -156,14 +258,140 @@ class DestinationResearchAgent:
         
         try:
             import json
-            params = json.loads(response.content)
+            # Clean up the response to extract JSON
+            content = response.content.strip()
+            if content.startswith('```json'):
+                content = content[7:]
+            if content.endswith('```'):
+                content = content[:-3]
+            content = content.strip()
+            
+            params = json.loads(content)
+            print(f"✅ Successfully parsed parameters: {params}")
             return DestinationRequest(**params)
-        except:
-            # Fallback parsing
+        except Exception as e:
+            print(f"❌ JSON parsing failed: {e}")
+            print(f"   Raw response: {response.content}")
+            
+            # Enhanced fallback parsing with regex
+            import re
+            
+            # Extract origin location
+            origin_location = None
+            origin_patterns = [
+                r'from\s+([A-Z]{3})',  # "from SFO"
+                r'from\s+([A-Za-z\s]+)',  # "from San Francisco"
+                r'([A-Z]{3})\s+to',  # "SFO to"
+                r'([A-Za-z\s]+)\s+to'  # "San Francisco to"
+            ]
+            
+            for pattern in origin_patterns:
+                match = re.search(pattern, user_request, re.IGNORECASE)
+                if match:
+                    origin_location = match.group(1).strip()
+                    break
+            
+            # Extract travel time
+            max_travel_time = None
+            time_patterns = [
+                r'within\s+(\d+\s+hours?)',  # "within 3 hours"
+                r'(\d+\s+hours?)\s+from',  # "3 hours from"
+                r'(\d+\s+hours?)\s+flight',  # "3 hours flight"
+                r'(\d+\s+hours?)\s+drive'  # "3 hours drive"
+            ]
+            
+            for pattern in time_patterns:
+                match = re.search(pattern, user_request, re.IGNORECASE)
+                if match:
+                    max_travel_time = match.group(1).strip()
+                    break
+            
+            print(f"   Fallback parsing - Origin: {origin_location}, Travel time: {max_travel_time}")
+            
+            # Extract traveler type and demographics
+            traveler_type = None
+            group_size = None
+            age_range = None
+            mobility_requirements = None
+            seasonal_preferences = None
+            
+            # Traveler type patterns
+            traveler_patterns = [
+                (r'\b(family|families|kids|children|with kids)\b', 'family_with_kids'),
+                (r'\b(couple|couples|romantic|honeymoon)\b', 'couple'),
+                (r'\b(solo|alone|single traveler)\b', 'solo'),
+                (r'\b(seniors|older|elderly|retired)\b', 'older_adults'),
+                (r'\b(friends|group|bachelor|bachelorette)\b', 'group_friends'),
+                (r'\b(business|work|conference|meeting)\b', 'business')
+            ]
+            
+            for pattern, traveler_type_val in traveler_patterns:
+                if re.search(pattern, user_request, re.IGNORECASE):
+                    traveler_type = traveler_type_val
+                    break
+            
+            # Group size patterns
+            group_size_match = re.search(r'\b(\d+)\s*(people|travelers|guests|adults)\b', user_request, re.IGNORECASE)
+            if group_size_match:
+                group_size = int(group_size_match.group(1))
+            
+            # Age range patterns
+            age_patterns = [
+                (r'\b(young|millennials|20s|30s)\b', 'young_adults'),
+                (r'\b(middle.?aged|40s|50s)\b', 'middle_aged'),
+                (r'\b(seniors|older|elderly|60s|70s|80s)\b', 'seniors')
+            ]
+            
+            for pattern, age_range_val in age_patterns:
+                if re.search(pattern, user_request, re.IGNORECASE):
+                    age_range = age_range_val
+                    break
+            
+            # Mobility requirements patterns
+            mobility_patterns = [
+                (r'\b(wheelchair|accessible|disability)\b', 'wheelchair_accessible'),
+                (r'\b(limited mobility|walking difficulties)\b', 'limited_mobility'),
+                (r'\b(active|hiking|adventure|sports)\b', 'active')
+            ]
+            
+            for pattern, mobility_val in mobility_patterns:
+                if re.search(pattern, user_request, re.IGNORECASE):
+                    mobility_requirements = mobility_val
+                    break
+            
+            # Seasonal preferences patterns
+            seasonal_patterns = [
+                (r'\b(summer|june|july|august)\b', 'summer'),
+                (r'\b(winter|december|january|february)\b', 'winter'),
+                (r'\b(spring|march|april|may)\b', 'spring'),
+                (r'\b(fall|autumn|september|october|november)\b', 'fall')
+            ]
+            
+            for pattern, seasonal_val in seasonal_patterns:
+                if re.search(pattern, user_request, re.IGNORECASE):
+                    seasonal_preferences = seasonal_val
+                    break
+            
+            print(f"   Enhanced fallback parsing:")
+            print(f"      Traveler type: {traveler_type}")
+            print(f"      Group size: {group_size}")
+            print(f"      Age range: {age_range}")
+            print(f"      Mobility: {mobility_requirements}")
+            print(f"      Seasonal: {seasonal_preferences}")
+            
             return DestinationRequest(
                 query=user_request,
+                origin_location=origin_location,
+                max_travel_time=max_travel_time,
+                travel_dates=None,
+                budget=None,
                 interests=[],
-                travel_style=None
+                travel_style=None,
+                traveler_type=traveler_type,
+                group_size=group_size,
+                age_range=age_range,
+                mobility_requirements=mobility_requirements,
+                seasonal_preferences=seasonal_preferences
             )
     
     def research_specific_destination(self, request: DestinationRequest) -> DestinationResearchResult:
@@ -204,11 +432,15 @@ class DestinationResearchAgent:
         # Create structured destination data from LLM response
         destination = self._create_destination_from_llm_response(response.content, request.query)
         
+        # For specific destinations, usually no choice needed unless multiple locations found
+        all_destinations = [destination]
+        
         return DestinationResearchResult(
             request_type="specific",
             primary_destinations=[destination],
             alternative_destinations=[],
-            travel_recommendations=response.content
+            travel_recommendations=response.content,
+            user_choice_required=len(all_destinations) > 1
         )
     
     def research_abstract_destination(self, request: DestinationRequest) -> DestinationResearchResult:
@@ -227,23 +459,53 @@ class DestinationResearchAgent:
         Budget: {request.budget or 'Not specified'}
         Interests: {request.interests or 'Not specified'}
         Travel style: {request.travel_style or 'Not specified'}
+        Traveler type: {request.traveler_type or 'Not specified'}
+        Group size: {request.group_size or 'Not specified'}
+        Age range: {request.age_range or 'Not specified'}
+        Mobility requirements: {request.mobility_requirements or 'Not specified'}
+        Seasonal preferences: {request.seasonal_preferences or 'Not specified'}
+        Travel dates: {request.travel_dates or 'Not specified'}
         
         Current Web Information:
         {chr(10).join(current_info) if current_info else "No current web information available - rely on your knowledge"}
         
-        Use your knowledge and current information to provide 3-5 destination recommendations that match the criteria.
+        IMPORTANT CONSTRAINTS:
+        - If a maximum travel time is specified ({request.max_travel_time}), ONLY recommend destinations that are actually within that travel time from the origin ({request.origin_location})
+        - For example, if origin is SFO and max travel time is 3 hours, destinations like Greece, Europe, or Asia are NOT acceptable
+        - Only recommend destinations that are realistically reachable within the specified time constraint
+        - If no destinations meet the time constraint, say so clearly
+        
+        TRAVELER-SPECIFIC CONSIDERATIONS:
+        - Consider the traveler type ({request.traveler_type}) when ranking destinations
+        - For families with kids: prioritize family-friendly activities, safety, and kid-appropriate attractions
+        - For couples: consider romantic appeal, adult-oriented activities, and intimate settings
+        - For solo travelers: focus on safety, social opportunities, and solo-friendly activities
+        - For older adults: consider accessibility, comfort, and less physically demanding activities
+        - For groups of friends: look for social activities, nightlife, and group-friendly accommodations
+        - For business travelers: prioritize convenience, business facilities, and professional amenities
+        
+        SEASONAL CONSIDERATIONS:
+        - Consider the time of year ({request.seasonal_preferences or request.travel_dates}) when ranking destinations
+        - Factor in weather conditions, crowd levels, and seasonal activities
+        - Adjust recommendations based on peak/off-peak seasons
+        - Consider seasonal pricing and availability
+        
+        Use your knowledge and current information to provide 3-5 destination recommendations that match ALL criteria.
         For each destination, include:
         - Name and location
-        - Why it matches the criteria
-        - Best time to visit (consider current year 2024)
-        - Key attractions and activities
-        - Travel time from origin (if specified)
+        - Why it matches the criteria (especially for the specific traveler type)
+        - Best time to visit (consider current year 2024 and seasonal factors)
+        - Key attractions and activities (tailored to traveler type)
+        - EXACT travel time from origin (if specified) - be accurate
         - Estimated costs for different budget levels
-        - Climate and weather
-        - Safety considerations
-        - Unique selling points
+        - Climate and weather (consider seasonal variations)
+        - Safety considerations (especially important for families and solo travelers)
+        - Family-friendliness score (1-10) if applicable
+        - Accessibility features if mobility requirements are specified
+        - Seasonal highlights and crowd levels
+        - Unique selling points for the specific traveler type
         
-        Rank them by how well they match the criteria and provide detailed reasoning for each recommendation.
+        Rank them by how well they match the criteria, considering both the basic requirements AND the traveler demographics and seasonal factors.
         """
         
         response = self.llm.invoke([HumanMessage(content=prompt)])
@@ -251,11 +513,18 @@ class DestinationResearchAgent:
         # Create structured destinations from LLM response
         destinations = self._create_multiple_destinations_from_llm(response.content)
         
+        # Validate destinations against constraints
+        validated_destinations = self._validate_destination_constraints(destinations, request)
+        
+        # For abstract requests, always require user choice if multiple options
+        all_destinations = validated_destinations
+        
         return DestinationResearchResult(
             request_type="abstract",
-            primary_destinations=destinations[:3],  # Top 3
-            alternative_destinations=destinations[3:],  # Rest as alternatives
-            travel_recommendations=response.content
+            primary_destinations=validated_destinations[:3],  # Top 3
+            alternative_destinations=validated_destinations[3:],  # Rest as alternatives
+            travel_recommendations=response.content,
+            user_choice_required=len(all_destinations) > 1
         )
     
     def research_multi_location(self, request: DestinationRequest) -> DestinationResearchResult:
@@ -290,12 +559,16 @@ class DestinationResearchAgent:
         
         destinations = self._create_multiple_destinations_from_llm(response.content)
         
+        # For multi-location requests, always require user choice
+        all_destinations = destinations
+        
         return DestinationResearchResult(
             request_type="multi_location",
             primary_destinations=destinations,
             alternative_destinations=[],
             travel_recommendations=response.content,
-            comparison_summary=self._extract_comparison_summary(response.content)
+            comparison_summary=self._extract_comparison_summary(response.content),
+            user_choice_required=len(all_destinations) > 1
         )
     
     def research_constrained_destination(self, request: DestinationRequest) -> DestinationResearchResult:
@@ -336,20 +609,42 @@ class DestinationResearchAgent:
         
         destinations = self._create_multiple_destinations_from_llm(response.content)
         
+        # Validate destinations against constraints
+        validated_destinations = self._validate_destination_constraints(destinations, request)
+        
+        # For constrained requests, require user choice if multiple options
+        all_destinations = validated_destinations
+        
         return DestinationResearchResult(
             request_type="constrained",
-            primary_destinations=destinations[:3],
-            alternative_destinations=destinations[3:],
-            travel_recommendations=response.content
+            primary_destinations=validated_destinations[:3],
+            alternative_destinations=validated_destinations[3:],
+            travel_recommendations=response.content,
+            user_choice_required=len(all_destinations) > 1
         )
     
     def research_destination(self, user_request: str) -> DestinationResearchResult:
         """Main method to research destinations based on user request"""
+        print(f"🔍 Starting destination research for: {user_request}")
+        
         # Analyze request type
         request_type = self.analyze_request_type(user_request)
+        print(f"   📋 Request type: {request_type}")
         
         # Extract parameters
         request_params = self.extract_destination_parameters(user_request)
+        print(f"   📊 Extracted parameters:")
+        print(f"      Query: {request_params.query}")
+        print(f"      Origin: {request_params.origin_location}")
+        print(f"      Max travel time: {request_params.max_travel_time}")
+        print(f"      Budget: {request_params.budget}")
+        print(f"      Interests: {request_params.interests}")
+        print(f"      Traveler type: {request_params.traveler_type}")
+        print(f"      Group size: {request_params.group_size}")
+        print(f"      Age range: {request_params.age_range}")
+        print(f"      Mobility: {request_params.mobility_requirements}")
+        print(f"      Seasonal: {request_params.seasonal_preferences}")
+        print(f"      Travel dates: {request_params.travel_dates}")
         
         # Route to appropriate research method
         if request_type == "specific":
@@ -440,7 +735,16 @@ class DestinationResearchAgent:
             "language": "Primary language",
             "currency": "Local currency",
             "safety_rating": "Safety rating/considerations",
-            "why_recommended": "Why this destination is recommended"
+            "why_recommended": "Why this destination is recommended",
+            "family_friendly_score": "Family-friendliness score (1-10, null if not applicable)",
+            "kid_friendly_activities": ["List of kid-friendly activities"],
+            "senior_friendly_features": ["List of senior-friendly features"],
+            "accessibility_features": ["List of accessibility features"],
+            "seasonal_highlights": {{"summer": "Summer highlights", "winter": "Winter highlights", "spring": "Spring highlights", "fall": "Fall highlights"}},
+            "crowd_levels": "Crowd levels (low/moderate/high/peak)",
+            "nightlife_rating": "Nightlife rating (none/limited/moderate/vibrant)",
+            "romantic_appeal": "Romantic appeal (low/moderate/high)",
+            "business_friendly": "Business-friendly (true/false/null)"
         }}
         
         Extract all destinations mentioned in the response. If information is not available for a field, use reasonable defaults.
@@ -450,38 +754,57 @@ class DestinationResearchAgent:
         try:
             extraction_response = self.llm.invoke([HumanMessage(content=extraction_prompt)])
             import json
-            destinations_data = json.loads(extraction_response.content)
+            
+            # Clean up the response to extract JSON
+            content = extraction_response.content.strip()
+            if content.startswith('```json'):
+                content = content[7:]
+            if content.endswith('```'):
+                content = content[:-3]
+            content = content.strip()
+            
+            destinations_data = json.loads(content)
             destinations = [DestinationOption(**dest) for dest in destinations_data]
+            print(f"✅ Successfully extracted {len(destinations)} destinations from LLM response")
             return destinations[:5]  # Limit to 5 destinations
-        except:
-            # Fallback to basic parsing
+        except Exception as e:
+            print(f"❌ Destination extraction failed: {e}")
+            print(f"   Raw extraction response: {extraction_response.content if 'extraction_response' in locals() else 'No response'}")
+            
+            # Enhanced fallback parsing using regex to find destination names
+            import re
             destinations = []
-            lines = response.split('\n')
-            current_dest = None
             
-            for line in lines:
-                if line.strip() and not line.startswith(' '):
-                    if current_dest:
-                        destinations.append(current_dest)
-                    current_dest = DestinationOption(
-                        name=line.strip(),
-                        country="Unknown",
-                        region="Unknown",
-                        description="See full response",
-                        best_time_to_visit="Year-round",
-                        key_attractions=[],
-                        activities=[],
-                        climate="Varies",
-                        visa_requirements="Check with embassy",
-                        language="Local language",
-                        currency="Local currency",
-                        safety_rating="Good",
-                        why_recommended="See full response"
-                    )
+            # Look for patterns like "1. **Destination Name**" or "### 1. **Destination Name**"
+            destination_patterns = [
+                r'\d+\.\s*\*\*([^*]+)\*\*',  # "1. **Monterey, CA**"
+                r'###\s*\d+\.\s*\*\*([^*]+)\*\*',  # "### 1. **Monterey, CA**"
+                r'\*\*([^*]+)\*\*',  # "**Monterey, CA**"
+                r'^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2})',  # "Monterey, CA"
+            ]
             
-            if current_dest:
-                destinations.append(current_dest)
+            for pattern in destination_patterns:
+                matches = re.findall(pattern, response, re.MULTILINE)
+                for match in matches:
+                    dest_name = match.strip()
+                    if dest_name and len(dest_name) > 2 and dest_name not in [d.name for d in destinations]:
+                        destinations.append(DestinationOption(
+                            name=dest_name,
+                            country="Unknown",
+                            region="Unknown",
+                            description="See full response",
+                            best_time_to_visit="Year-round",
+                            key_attractions=[],
+                            activities=[],
+                            climate="Varies",
+                            visa_requirements="Check with embassy",
+                            language="Local language",
+                            currency="Local currency",
+                            safety_rating="Good",
+                            why_recommended="See full response"
+                        ))
             
+            print(f"   Fallback parsing found {len(destinations)} destinations: {[d.name for d in destinations]}")
             return destinations[:5]  # Limit to 5 destinations
     
     def _extract_comparison_summary(self, response: str) -> str:

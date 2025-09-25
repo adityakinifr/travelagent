@@ -22,9 +22,10 @@ The primary agent orchestrates the workflow through these nodes:
 
 1. **Parse Request**: Extracts structured information from natural language input
 2. **Research Destination**: Uses specialized Destination Research Agent
-3. **Search Travel Options**: Searches for flights and hotels
-4. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
-5. **Refine Itinerary**: Reviews and improves the itinerary
+3. **Select Destination**: Handles user choice when multiple destinations are available
+4. **Search Travel Options**: Searches for flights and hotels
+5. **Create Itinerary**: Generates a detailed day-by-day itinerary with travel options
+6. **Refine Itinerary**: Reviews and improves the itinerary
 
 ### Destination Research Agent
 A specialized agent that handles various types of destination requests:
@@ -47,18 +48,28 @@ A specialized agent that handles various types of destination requests:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   Parse Request │───▶│ Destination      │───▶│ Search Travel       │
-│                 │    │ Research Agent   │    │ Options             │
-│ • Extract trip  │    │                  │    │                     │
-│   details       │    │ • Specific:      │    │ • Amadeus API       │
-│ • Structure     │    │   "Paris"        │    │ • SerpAPI           │
-│   data          │    │ • Abstract:      │    │ • FlightsAPI.io     │
-│ • Validate      │    │   "Beach near    │    │ • Real-time data    │
-└─────────────────┘    │    SFO"          │    │ • Price comparison  │
-                       │ • Multi-location │    └─────────────────────┘
-                       │ • Constrained    │              │
-                       └──────────────────┘              ▼
-                                                         
+│   Parse Request │───▶│ Destination      │───▶│ Select Destination  │
+│                 │    │ Research Agent   │    │                     │
+│ • Extract trip  │    │                  │    │ • Multiple options  │
+│   details       │    │ • Specific:      │    │ • User choice       │
+│ • Structure     │    │   "Paris"        │    │ • Confirmation      │
+│   data          │    │ • Abstract:      │    │ • Proceed with      │
+│ • Validate      │    │   "Beach near    │    │   selection         │
+└─────────────────┘    │    SFO"          │    └─────────────────────┘
+                       │ • Multi-location │              │
+                       │ • Constrained    │              ▼
+                       └──────────────────┘    ┌─────────────────────┐
+                                                │ Search Travel       │
+                                                │ Options             │
+                                                │                     │
+                                                │ • Amadeus API       │
+                                                │ • SerpAPI           │
+                                                │ • FlightsAPI.io     │
+                                                │ • Real-time data    │
+                                                │ • Price comparison  │
+                                                └─────────────────────┘
+                                                           │
+                                                           ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
 │   Refine        │◀───│ Create           │◀───│ Travel Options      │
 │   Itinerary     │    │ Itinerary        │    │ Results             │
