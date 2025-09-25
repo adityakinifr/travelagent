@@ -10,6 +10,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from preferences_manager import PreferencesManager
 
 # Load environment variables
 load_dotenv()
@@ -69,7 +70,7 @@ class DestinationResearchResult(BaseModel):
 class DestinationResearchAgent:
     """Specialized agent for destination research and recommendation"""
     
-    def __init__(self, model_name: str = "gpt-4o-mini"):
+    def __init__(self, model_name: str = "gpt-4o-mini", preferences_file: str = "travel_preferences.json"):
         """Initialize the destination research agent"""
         self.llm = ChatOpenAI(
             model=model_name,
@@ -77,6 +78,7 @@ class DestinationResearchAgent:
             api_key=os.getenv("OPENAI_API_KEY")
         )
         self.serpapi_key = os.getenv("SERPAPI_KEY")
+        self.preferences_manager = PreferencesManager(preferences_file)
     
     def search_web(self, query: str, num_results: int = 5) -> List[str]:
         """Search the web for current information about destinations"""
@@ -483,6 +485,16 @@ class DestinationResearchAgent:
         - For older adults: consider accessibility, comfort, and less physically demanding activities
         - For groups of friends: look for social activities, nightlife, and group-friendly accommodations
         - For business travelers: prioritize convenience, business facilities, and professional amenities
+        
+        PREFERENCES-BASED CONSIDERATIONS:
+        - Hotel preferences: Consider preferred hotel chains and loyalty programs
+        - Flight preferences: Consider airline alliances, class preferences, and red-eye preferences
+        - Budget preferences: Align recommendations with budget level and spending patterns
+        - Activity preferences: Match outdoor/indoor activities and adventure level
+        - Cultural preferences: Consider cultural sensitivity and authentic experiences
+        - Safety preferences: Prioritize safety-conscious recommendations
+        - Technology preferences: Consider digital-friendly destinations and connectivity
+        - Environmental preferences: Factor in eco-conscious and sustainable options
         
         SEASONAL CONSIDERATIONS:
         - Consider the time of year ({request.seasonal_preferences or request.travel_dates}) when ranking destinations
