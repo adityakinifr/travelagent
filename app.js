@@ -486,7 +486,20 @@ class TravelAgentApp {
 
     async handlePlanningUpdate(data) {
         try {
-            console.log('📥 Received update:', data.type, data.message);
+            console.log('📥 Received update:', data);
+            
+            // Validate data structure
+            if (!data || typeof data !== 'object') {
+                console.error('❌ Invalid data received:', data);
+                return;
+            }
+            
+            if (!data.type) {
+                console.error('❌ Missing type in data:', data);
+                return;
+            }
+            
+            console.log('📥 Processing update type:', data.type, 'message:', data.message);
             switch (data.type) {
                 case 'step':
                     this.updateStep(data.step, data.message, data.details, data.substeps);
@@ -508,10 +521,20 @@ class TravelAgentApp {
                 this.showMessage(data.message, 'error');
                 this.cancelPlanning();
                 break;
+            default:
+                console.warn('⚠️ Unknown update type:', data.type, data);
+                // Try to show the message if it exists
+                if (data.message) {
+                    this.updateProgressMessage(data.message, data.details);
+                }
+                break;
             }
         } catch (error) {
             console.error('❌ Error handling planning update:', error);
+            console.error('❌ Error stack:', error.stack);
             console.error('❌ Data that caused error:', data);
+            console.error('❌ Data type:', typeof data);
+            console.error('❌ Data keys:', data ? Object.keys(data) : 'null');
             this.showMessage(`Error processing update: ${error.message}`, 'error');
         }
     }
@@ -568,10 +591,14 @@ class TravelAgentApp {
     updateProgressMessage(message, details = null, parameters = null) {
         // Update progress content with real-time message
         const content = document.getElementById('progress-content');
+        
+        // Ensure message is a string
+        const safeMessage = message ? String(message) : 'Processing...';
+        
         let progressHTML = `
             <div class="status-message status-info">
                 <i class="fas fa-spinner fa-spin"></i>
-                ${message}
+                ${safeMessage}
             </div>
         `;
 
@@ -835,21 +862,36 @@ class TravelAgentApp {
     }
 
     showMessage(message, type) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `status-message status-${type}`;
-        messageDiv.innerHTML = `
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-            ${message}
-        `;
+        try {
+            // Ensure message is a string
+            const safeMessage = message ? String(message) : 'An error occurred';
+            const safeType = type || 'error';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `status-message status-${safeType}`;
+            messageDiv.innerHTML = `
+                <i class="fas fa-${safeType === 'success' ? 'check-circle' : safeType === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                ${safeMessage}
+            `;
 
-        // Insert at the top of the container
-        const container = document.querySelector('.container');
-        container.insertBefore(messageDiv, container.firstChild);
+            // Insert at the top of the container
+            const container = document.querySelector('.container');
+            if (container) {
+                container.insertBefore(messageDiv, container.firstChild);
 
-        // Remove after 5 seconds
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 5000);
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.remove();
+                    }
+                }, 5000);
+            } else {
+                console.error('❌ Container not found for showMessage');
+            }
+        } catch (error) {
+            console.error('❌ Error in showMessage:', error);
+            console.error('❌ Message:', message, 'Type:', type);
+        }
     }
 
     cancelPlanning() {

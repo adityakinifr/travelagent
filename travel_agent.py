@@ -435,6 +435,38 @@ class TravelAgent:
         
         return prompt
     
+    def _mock_search_travel_options(self, state: AgentState) -> AgentState:
+        """Mock travel options search for testing"""
+        trip_spec = state["trip_spec"]
+        
+        print(f"🎭 MOCK MODE: Using mock travel options")
+        
+        # Get mock flights and hotels
+        from mock_data import mock_data
+        
+        mock_flights = mock_data.get_mock_flights(
+            origin=trip_spec.origin or "SFO",
+            destination=trip_spec.destination,
+            departure_date="2024-06-15",
+            return_date="2024-06-20"
+        )
+        
+        mock_hotels = mock_data.get_mock_hotels(
+            destination=trip_spec.destination,
+            check_in="2024-06-15",
+            check_out="2024-06-20"
+        )
+        
+        print(f"   ✅ Mock flight search completed - found {len(mock_flights)} options")
+        print(f"   ✅ Mock hotel search completed - found {len(mock_hotels)} options")
+        
+        state["flight_options"] = [{"results": mock_flights}]
+        state["hotel_options"] = [{"results": mock_hotels}]
+        
+        state["messages"].append(AIMessage(content=f"Found mock travel options for {trip_spec.destination}"))
+        
+        return state
+    
     def _search_travel_options(self, state: AgentState) -> AgentState:
         """Search for flights, hotels, and car rentals"""
         trip_spec = state["trip_spec"]
@@ -443,6 +475,10 @@ class TravelAgent:
         print(f"   🎯 Destination: {trip_spec.destination}")
         print(f"   ✈️ Origin: {trip_spec.origin or 'NYC (default)'}")
         print(f"   📅 Duration: {trip_spec.duration}")
+        
+        if self.mock_mode:
+            print(f"🎭 MOCK MODE: Using mock travel options")
+            return self._mock_search_travel_options(state)
         
         # For demonstration, we'll use mock dates
         # In a real implementation, you'd parse dates from the trip specification
@@ -490,6 +526,51 @@ class TravelAgent:
         
         return state
     
+    def _mock_create_itinerary(self, state: AgentState) -> AgentState:
+        """Mock itinerary creation for testing"""
+        trip_spec = state["trip_spec"]
+        
+        print(f"🎭 MOCK MODE: Creating mock itinerary")
+        
+        # Create a simple mock itinerary
+        
+        itinerary = TripItinerary(
+            destination=trip_spec.destination,
+            duration=trip_spec.duration,
+            total_estimated_cost="$1,500",
+            days=[
+                ItineraryDay(
+                    day=1,
+                    date="Day 1 - Arrival",
+                    activities=["Arrive at destination", "Check into hotel", "Explore local area"],
+                    meals=["Welcome dinner at local restaurant"],
+                    accommodation="Luxury Resort",
+                    estimated_cost="$200"
+                ),
+                ItineraryDay(
+                    day=2,
+                    date="Day 2 - Adventure",
+                    activities=["Morning beach activities", "Afternoon sightseeing", "Evening entertainment"],
+                    meals=["Breakfast at hotel", "Lunch at beach cafe", "Dinner at fine dining"],
+                    accommodation="Luxury Resort",
+                    estimated_cost="$300"
+                ),
+                ItineraryDay(
+                    day=3,
+                    date="Day 3 - Relaxation",
+                    activities=["Spa day", "Pool relaxation", "Shopping"],
+                    meals=["Brunch at resort", "Light lunch", "Farewell dinner"],
+                    accommodation="Luxury Resort",
+                    estimated_cost="$250"
+                )
+            ]
+        )
+        
+        state["itinerary"] = itinerary
+        state["messages"].append(AIMessage(content=f"Mock itinerary created for {trip_spec.destination}"))
+        
+        return state
+    
     def _create_itinerary(self, state: AgentState) -> AgentState:
         """Create a detailed day-by-day itinerary"""
         trip_spec = state["trip_spec"]
@@ -500,6 +581,10 @@ class TravelAgent:
         print(f"   💰 Budget: {trip_spec.budget}")
         print(f"   🎨 Interests: {trip_spec.interests}")
         print(f"   🎭 Travel Style: {trip_spec.travel_style}")
+        
+        if self.mock_mode:
+            print(f"🎭 MOCK MODE: Using mock itinerary")
+            return self._mock_create_itinerary(state)
         
         # Get travel options
         flight_options = state.get("flight_options", [])

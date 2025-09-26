@@ -28,9 +28,41 @@ class FeasibilityResult(BaseModel):
 class FeasibilityChecker:
     """Checks feasibility of travel recommendations"""
     
-    def __init__(self, preferences_file: str = "travel_preferences.json"):
+    def __init__(self, preferences_file: str = "travel_preferences.json", mock_mode: bool = False):
         self.preferences_manager = PreferencesManager(preferences_file)
-        self.travel_apis = RealTravelAPIs()
+        self.mock_mode = mock_mode
+        if not mock_mode:
+            self.travel_apis = RealTravelAPIs()
+        else:
+            self.travel_apis = None
+            from mock_data import mock_data
+            self.mock_data = mock_data
+    
+    def _mock_check_feasibility(
+        self, 
+        destination: str, 
+        origin: str, 
+        travel_dates: str,
+        budget: Optional[str] = None,
+        traveler_type: str = "leisure"
+    ) -> FeasibilityResult:
+        """Mock feasibility checking for testing"""
+        print(f"🎭 MOCK MODE: Using mock feasibility data")
+        
+        # Get mock feasibility result
+        mock_result = self.mock_data.get_mock_feasibility_result(destination, origin)
+        
+        return FeasibilityResult(
+            is_feasible=mock_result["is_feasible"],
+            feasibility_score=mock_result["feasibility_score"],
+            issues=mock_result["issues"],
+            alternatives=mock_result["alternatives"],
+            estimated_total_cost=mock_result["estimated_total_cost"],
+            flight_available=mock_result["flight_available"],
+            hotel_available=mock_result["hotel_available"],
+            within_budget=mock_result["within_budget"],
+            details=mock_result["details"]
+        )
         
     def check_destination_feasibility(
         self, 
@@ -41,6 +73,10 @@ class FeasibilityChecker:
         traveler_type: str = "leisure"
     ) -> FeasibilityResult:
         """Check if a destination is feasible for travel"""
+        
+        if self.mock_mode:
+            print(f"🎭 MOCK MODE: Checking feasibility for {destination} from {origin}")
+            return self._mock_check_feasibility(destination, origin, travel_dates, budget, traveler_type)
         
         print(f"🔍 Checking feasibility for {destination} from {origin}")
         print(f"   📅 Travel dates: {travel_dates}")

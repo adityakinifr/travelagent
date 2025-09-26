@@ -93,7 +93,7 @@ class DestinationResearchAgent:
             self.mock_data = mock_data
         self.serpapi_key = os.getenv("SERPAPI_KEY")
         self.preferences_manager = PreferencesManager(preferences_file)
-        self.feasibility_checker = FeasibilityChecker(preferences_file)
+        self.feasibility_checker = FeasibilityChecker(preferences_file, mock_mode=mock_mode)
     
     def search_web(self, query: str, num_results: int = 5) -> List[str]:
         """Search the web for current information about destinations"""
