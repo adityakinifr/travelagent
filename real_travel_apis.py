@@ -57,6 +57,27 @@ class HotelResult(BaseModel):
     currency: str = "USD"
 
 
+class CarRentalSearch(BaseModel):
+    """Car rental search parameters"""
+    pickup_location: str
+    pickup_date: str
+    return_date: str
+    pickup_time: str = "10:00"
+    return_time: str = "10:00"
+
+
+class CarRentalResult(BaseModel):
+    """Car rental search result"""
+    company: str
+    car_type: str
+    price_per_day: str
+    total_price: str
+    pickup_location: str
+    features: List[str]
+    availability: bool
+    currency: str = "USD"
+
+
 class RealTravelAPIs:
     """Real API implementations for travel data"""
     
@@ -436,7 +457,22 @@ class RealTravelAPIs:
         except Exception as e:
             print(f"Error searching hotels with Amadeus: {e}")
             return []
-    
+
+    def search_car_rentals_amadeus(self, search: CarRentalSearch) -> List[CarRentalResult]:
+        """Search car rentals using Amadeus API.
+
+        The Amadeus test environment available in CI does not provide car rental data, so
+        this method returns an empty list while logging the limitation.
+        """
+        if not self.amadeus_client:
+            print("Amadeus API credentials not configured")
+            return []
+
+        # The public Amadeus SDK does not expose car rental offers in the test environment.
+        # Rather than raising an AttributeError at runtime, return a graceful empty result.
+        print("Car rental search via Amadeus is not supported in this environment")
+        return []
+
     def search_all_flights(self, search: FlightSearch) -> List[FlightResult]:
         """Search multiple flight providers and combine results"""
         all_flights = []
@@ -484,8 +520,17 @@ class RealTravelAPIs:
                 return float('inf')
         
         all_hotels.sort(key=extract_price)
-        
+
         return all_hotels[:10]  # Return top 10 results
+
+    def search_all_car_rentals(self, search: CarRentalSearch) -> List[CarRentalResult]:
+        """Search car rental providers and combine results"""
+        all_cars = []
+
+        amadeus_cars = self.search_car_rentals_amadeus(search)
+        all_cars.extend(amadeus_cars)
+
+        return all_cars[:10]
     
 
 # Tool functions for LangChain integration
@@ -519,7 +564,7 @@ def search_flights_real_api(origin: str, destination: str, departure_date: str,
     
     return result
 
-def search_hotels_real_api(destination: str, check_in: str, check_out: str, 
+def search_hotels_real_api(destination: str, check_in: str, check_out: str,
                           guests: int = 1, rooms: int = 1) -> str:
     """
     Tool for searching hotels using real APIs
@@ -544,6 +589,43 @@ def search_hotels_real_api(destination: str, check_in: str, check_out: str,
         result += f"   Price: {hotel.price_per_night}/night (Total: {hotel.total_price})\n"
         result += f"   Rating: {hotel.rating} | Location: {hotel.location}\n"
         result += f"   Amenities: {', '.join(hotel.amenities[:3])}{'...' if len(hotel.amenities) > 3 else ''}\n\n"
-    
+
+    return result
+
+
+def search_car_rentals_real_api(pickup_location: str, pickup_date: str, return_date: str,
+                                pickup_time: str = "10:00", return_time: str = "10:00") -> str:
+    """Tool for searching car rentals using real APIs"""
+    apis = RealTravelAPIs()
+    search = CarRentalSearch(
+        pickup_location=pickup_location,
+        pickup_date=pickup_date,
+        return_date=return_date,
+        pickup_time=pickup_time,
+        return_time=return_time,
+    )
+
+    cars = apis.search_all_car_rentals(search)
+
+    if not cars:
+        return (
+            "No car rentals found for the given criteria or the provider does not support "
+            "car rental data in this environment."
+        )
+
+    result = (
+        f"Found {len(cars)} car rentals in {pickup_location}:\n\n"
+    )
+    for i, car in enumerate(cars, 1):
+        result += f"{i}. {car.company} - {car.car_type}\n"
+        result += f"   Price: {car.price_per_day}/day (Total: {car.total_price})\n"
+        result += f"   Pickup location: {car.pickup_location}\n"
+        if car.features:
+            result += (
+                f"   Features: {', '.join(car.features[:3])}"
+                f"{'...' if len(car.features) > 3 else ''}\n"
+            )
+        result += "\n"
+
     return result
 

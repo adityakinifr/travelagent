@@ -232,12 +232,30 @@ class PreferencesManager:
     
     def get_transportation_recommendations(self, trip_type: str = "leisure") -> Dict[str, Any]:
         """Get transportation recommendations based on preferences"""
-        transport_prefs = self.preferences.transportation_preferences
-        
+        transport_prefs = self._ensure_dict(self.preferences.transportation_preferences)
+        ground_transport = self._ensure_dict(transport_prefs.get("ground_transport", {}))
+        car_rental_prefs = self._ensure_dict(transport_prefs.get("car_rental_preferences", {}))
+
+        car_types = car_rental_prefs.get("car_types", {})
+        if not isinstance(car_types, dict):
+            car_types = {}
+
+        preferred_car_type = car_types.get(trip_type)
+        if not isinstance(preferred_car_type, str):
+            # Try a sensible fallback based on common trip types before defaulting
+            fallback_keys = ["leisure", "business", "family"]
+            for key in fallback_keys:
+                value = car_types.get(key)
+                if isinstance(value, str):
+                    preferred_car_type = value
+                    break
+        if not isinstance(preferred_car_type, str):
+            preferred_car_type = "sedan"
+
         return {
-            "ground_transport": transport_prefs.get("ground_transport", {}),
-            "car_rental": transport_prefs.get("car_rental_preferences", {}),
-            "preferred_car_type": transport_prefs.get("car_rental_preferences", {}).get("car_types", {}).get(trip_type, "sedan")
+            "ground_transport": ground_transport,
+            "car_rental": car_rental_prefs,
+            "preferred_car_type": preferred_car_type
         }
     
     def determine_trip_type(self, destination: str, duration: str, traveler_type: str = "leisure") -> str:
@@ -578,3 +596,13 @@ Activities:
             "communication": self.get_communication_recommendations(),
             "insurance": self.get_travel_insurance_recommendations()
         }
+    @staticmethod
+    def _ensure_dict(value: Any) -> Dict[str, Any]:
+        """Return the value if it's a dict, otherwise provide a safe empty dict."""
+        if isinstance(value, dict):
+            return value
+        if isinstance(value, BaseModel):
+            # Pydantic models expose a dict representation – convert to avoid attribute errors
+            return value.model_dump()
+        return {}
+
