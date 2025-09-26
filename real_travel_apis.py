@@ -442,7 +442,7 @@ class RealTravelAPIs:
                     price_per_night=f"{price_data['currency']} {price_data['base']}",
                     total_price=f"{price_data['currency']} {price_data['total']}",
                     rating=str(hotel_data.get('rating', 'N/A')),
-                    location=hotel_data.get('address', {}).get('cityName', search.destination),
+                    location=(hotel_data.get('address') or {}).get('cityName', search.destination) if isinstance(hotel_data.get('address'), dict) else search.destination,
                     amenities=amenities,
                     availability=True,
                     currency=price_data['currency']

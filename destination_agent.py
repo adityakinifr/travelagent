@@ -1432,7 +1432,11 @@ class DestinationResearchAgent:
                         # Add feasibility information to the destination
                         original_dest.estimated_cost = f"${feasibility_result.estimated_total_cost:.0f}"
                         if isinstance(feasibility_result.details, dict):
-                            original_dest.travel_time_from_origin = feasibility_result.details.get("flight", {}).get("flight_duration", "Unknown")
+                            flight_details = feasibility_result.details.get("flight", {})
+                            if isinstance(flight_details, dict):
+                                original_dest.travel_time_from_origin = flight_details.get("flight_duration", "Unknown")
+                            else:
+                                original_dest.travel_time_from_origin = "Unknown"
                         else:
                             original_dest.travel_time_from_origin = "Unknown"
                         feasible_destinations.append(original_dest)
