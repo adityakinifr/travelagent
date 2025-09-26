@@ -579,7 +579,7 @@ class DestinationResearchAgent:
         response = self.llm.invoke([HumanMessage(content=prompt)])
         return response.content.strip().lower()
     
-    def extract_destination_parameters(self, user_request: str) -> DestinationRequest:
+    def extract_destination_parameters(self, user_request: str, progress_callback=None) -> DestinationRequest:
         """Extract structured parameters from the user request"""
         prompt = f"""
         Extract destination research parameters from this travel request:
@@ -619,6 +619,19 @@ class DestinationResearchAgent:
             
             params = json.loads(content)
             print(f"✅ Successfully parsed parameters: {params}")
+            
+            # Send extracted parameters to UI if callback provided
+            if progress_callback:
+                print(f"   📤 Sending extracted parameters to UI via progress callback")
+                progress_callback({
+                    'type': 'progress_update',
+                    'message': '✅ Successfully extracted travel parameters',
+                    'details': f"Query: {params.get('query', 'N/A')} | Origin: {params.get('origin_location', 'N/A')} | Budget: {params.get('budget', 'N/A')} | Dates: {params.get('travel_dates', 'N/A')} | Group Size: {params.get('group_size', 'N/A')} | Traveler Type: {params.get('traveler_type', 'N/A')}"
+                })
+                print(f"   ✅ Progress callback sent successfully")
+            else:
+                print(f"   ⚠️ No progress callback provided")
+            
             return DestinationRequest(**params)
         except Exception as e:
             print(f"❌ JSON parsing failed: {e}")
@@ -729,6 +742,18 @@ class DestinationResearchAgent:
             print(f"      Age range: {age_range}")
             print(f"      Mobility: {mobility_requirements}")
             print(f"      Seasonal: {seasonal_preferences}")
+            
+            # Send extracted parameters to UI if callback provided (fallback parsing)
+            if progress_callback:
+                print(f"   📤 Sending extracted parameters to UI via progress callback (fallback)")
+                progress_callback({
+                    'type': 'progress_update',
+                    'message': '✅ Successfully extracted travel parameters (fallback parsing)',
+                    'details': f"Query: {user_request[:50]}... | Origin: {origin_location or 'N/A'} | Budget: N/A | Dates: N/A | Group Size: {group_size or 'N/A'} | Traveler Type: {traveler_type or 'N/A'}"
+                })
+                print(f"   ✅ Progress callback sent successfully (fallback)")
+            else:
+                print(f"   ⚠️ No progress callback provided (fallback)")
             
             return DestinationRequest(
                 query=user_request,
@@ -1153,7 +1178,7 @@ class DestinationResearchAgent:
         print(f"   📋 Request type: {request_type}")
         
         # Extract parameters
-        request_params = self.extract_destination_parameters(user_request)
+        request_params = self.extract_destination_parameters(user_request, progress_callback)
         print(f"   📊 Extracted parameters:")
         print(f"      Query: {request_params.query}")
         print(f"      Origin: {request_params.origin_location}")
@@ -1442,7 +1467,7 @@ class DestinationResearchAgent:
             return initial_result
         
         # Extract parameters for feasibility checking
-        request_params = self.extract_destination_parameters(user_request)
+        request_params = self.extract_destination_parameters(user_request, progress_callback)
         
         # Check feasibility for all primary destinations
         if initial_result.primary_destinations:
