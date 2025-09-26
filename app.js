@@ -467,7 +467,7 @@ class TravelAgentApp {
                 this.updateStep(data.step, data.message, data.details, data.substeps);
                 break;
             case 'progress_update':
-                this.updateProgressMessage(data.message, data.details);
+                this.updateProgressMessage(data.message, data.details, data.parameters);
                 break;
             case 'user_input_required':
                 await this.handleUserInputRequired(data);
@@ -534,7 +534,7 @@ class TravelAgentApp {
         content.innerHTML = progressHTML;
     }
 
-    updateProgressMessage(message, details = null) {
+    updateProgressMessage(message, details = null, parameters = null) {
         // Update progress content with real-time message
         const content = document.getElementById('progress-content');
         let progressHTML = `
@@ -544,11 +544,46 @@ class TravelAgentApp {
             </div>
         `;
 
+        const escapeHTML = (value) => String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
         if (details) {
             progressHTML += `
                 <div class="progress-details">
                     <h4><i class="fas fa-info-circle"></i> Current Activity</h4>
                     <p>${details}</p>
+                </div>
+            `;
+        }
+
+        if (parameters && Object.keys(parameters).length > 0) {
+            const parameterItems = Object.entries(parameters)
+                .map(([key, value]) => {
+                    let displayValue = value;
+                    if (Array.isArray(value)) {
+                        displayValue = value.join(', ');
+                    } else if (value === null || value === undefined) {
+                        displayValue = '';
+                    }
+                    return `
+                        <li>
+                            <span class="param-key">${escapeHTML(key)}:</span>
+                            <span class="param-value">${escapeHTML(displayValue)}</span>
+                        </li>
+                    `;
+                })
+                .join('');
+
+            progressHTML += `
+                <div class="progress-details">
+                    <h4><i class="fas fa-list-ul"></i> Extracted Parameters</h4>
+                    <ul class="parameters-list">
+                        ${parameterItems}
+                    </ul>
                 </div>
             `;
         }
