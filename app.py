@@ -93,21 +93,43 @@ class PlanningSession:
                 'step': 2,
                 'message': 'Starting destination research...',
                 'details': f"Analyzing request: {destination_request.query}",
-                'substeps': ['Initializing destination research agent']
+                'substeps': [
+                    'Initializing destination research agent',
+                    'Setting up web search parameters',
+                    'Preparing image search algorithms',
+                    'Configuring feasibility checking'
+                ]
             }
 
-            # Show web search progress
+            # Show detailed research progress
             yield {
                 'type': 'progress_update',
-                'message': 'Performing web search for destination options...',
-                'details': 'Searching travel websites and databases'
+                'message': '🔍 Starting comprehensive destination research...',
+                'details': 'Initializing search algorithms and preference matching'
             }
 
-            # Show airport lookup progress
             yield {
                 'type': 'progress_update',
-                'message': 'Looking up airport codes for destinations...',
-                'details': 'Finding nearest airports for flight planning'
+                'message': '🌐 Performing web search for destination options...',
+                'details': 'Searching travel websites, blogs, and destination databases'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '✈️ Looking up airport codes for destinations...',
+                'details': 'Finding nearest airports and flight accessibility'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '📸 Searching for destination images...',
+                'details': 'Finding beautiful photos to showcase each destination'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '🧠 Analyzing destinations with AI...',
+                'details': 'Using LLM to evaluate and rank destinations'
             }
 
             # Research destinations

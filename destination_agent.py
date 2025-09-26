@@ -1385,9 +1385,12 @@ class DestinationResearchAgent:
         """Research destinations with feasibility checking and backtracking"""
         
         print(f"🔍 Starting destination research with feasibility checking: {user_request}")
+        print(f"   📋 Request details: {user_request}")
         
         # First, do the normal destination research
+        print(f"   🚀 Initializing destination research...")
         initial_result = self.research_destination(user_request)
+        print(f"   ✅ Initial research completed - found {len(initial_result.primary_destinations) if initial_result.primary_destinations else 0} destinations")
         
         if not check_feasibility:
             return initial_result
@@ -1398,9 +1401,14 @@ class DestinationResearchAgent:
         # Check feasibility for all primary destinations
         if initial_result.primary_destinations:
             print(f"\n🔍 Checking feasibility for {len(initial_result.primary_destinations)} destinations...")
-            
             destination_names = [dest.name for dest in initial_result.primary_destinations]
+            print(f"   📍 Destinations to check: {', '.join(destination_names)}")
+            print(f"   ✈️  Origin: {request_params.origin_location or 'Unknown'}")
+            print(f"   📅 Travel dates: {request_params.travel_dates or 'summer'}")
+            print(f"   💰 Budget: {request_params.budget or 'Not specified'}")
+            print(f"   👥 Traveler type: {request_params.traveler_type or 'leisure'}")
             
+            print(f"   🔄 Starting feasibility analysis...")
             feasibility_results = self.feasibility_checker.check_multiple_destinations(
                 destinations=destination_names,
                 origin=request_params.origin_location or "Unknown",
@@ -1408,12 +1416,15 @@ class DestinationResearchAgent:
                 budget=request_params.budget,
                 traveler_type=request_params.traveler_type or "leisure"
             )
+            print(f"   ✅ Feasibility analysis completed for {len(feasibility_results)} destinations")
             
             # Filter for feasible destinations
+            print(f"   🔍 Filtering destinations by feasibility (min score: {min_feasibility_score})...")
             feasible_destinations = []
             infeasible_destinations = []
             
             for dest_name, feasibility_result in feasibility_results:
+                print(f"   📊 {dest_name}: Score {feasibility_result.feasibility_score:.2f}, Feasible: {feasibility_result.is_feasible}")
                 if feasibility_result.is_feasible and feasibility_result.feasibility_score >= min_feasibility_score:
                     # Find the original destination object
                     original_dest = next((d for d in initial_result.primary_destinations if d.name == dest_name), None)
@@ -1422,8 +1433,12 @@ class DestinationResearchAgent:
                         original_dest.estimated_cost = f"${feasibility_result.estimated_total_cost:.0f}"
                         original_dest.travel_time_from_origin = feasibility_result.details.get("flight", {}).get("flight_duration", "Unknown")
                         feasible_destinations.append(original_dest)
+                        print(f"   ✅ {dest_name} added to feasible destinations")
                 else:
                     infeasible_destinations.append((dest_name, feasibility_result))
+                    print(f"   ❌ {dest_name} marked as infeasible")
+            
+            print(f"   📈 Results: {len(feasible_destinations)} feasible, {len(infeasible_destinations)} infeasible")
             
             # If we have feasible destinations, use them
             if feasible_destinations:

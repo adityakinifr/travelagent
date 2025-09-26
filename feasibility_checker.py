@@ -43,6 +43,9 @@ class FeasibilityChecker:
         """Check if a destination is feasible for travel"""
         
         print(f"🔍 Checking feasibility for {destination} from {origin}")
+        print(f"   📅 Travel dates: {travel_dates}")
+        print(f"   💰 Budget: {budget or 'Not specified'}")
+        print(f"   👥 Traveler type: {traveler_type}")
         
         issues = []
         alternatives = []
@@ -54,9 +57,12 @@ class FeasibilityChecker:
         details = {}
         
         # Parse travel dates
+        print(f"   📅 Parsing travel dates...")
         departure_date, return_date = self._parse_travel_dates(travel_dates)
+        print(f"   📅 Parsed dates: {departure_date} to {return_date}")
         
         # Check flight availability and cost
+        print(f"   ✈️  Checking flight availability...")
         flight_result = self._check_flight_feasibility(origin, destination, departure_date, return_date)
         if flight_result:
             flight_available = flight_result.get("available", False)
@@ -73,6 +79,7 @@ class FeasibilityChecker:
                 feasibility_score -= 0.3
         
         # Check hotel availability and cost
+        print(f"   🏨 Checking hotel availability...")
         hotel_result = self._check_hotel_feasibility(destination, departure_date, return_date, traveler_type)
         if hotel_result:
             hotel_available = hotel_result.get("available", False)
@@ -102,6 +109,17 @@ class FeasibilityChecker:
         feasibility_score = max(0.0, min(1.0, feasibility_score))
         
         is_feasible = feasibility_score >= 0.6 and flight_available and hotel_available and within_budget
+        
+        # Log final results
+        print(f"   📊 Final feasibility assessment:")
+        print(f"      Score: {feasibility_score:.2f}")
+        print(f"      Feasible: {is_feasible}")
+        print(f"      Flight available: {flight_available}")
+        print(f"      Hotel available: {hotel_available}")
+        print(f"      Within budget: {within_budget}")
+        print(f"      Estimated cost: ${estimated_total_cost:.0f}")
+        if issues:
+            print(f"      Issues: {', '.join(issues[:2])}")
         
         return FeasibilityResult(
             is_feasible=is_feasible,
@@ -448,10 +466,16 @@ class FeasibilityChecker:
         """Check feasibility for multiple destinations and return ranked results"""
         
         print(f"🔍 Checking feasibility for {len(destinations)} destinations")
+        print(f"   📍 Destinations: {', '.join(destinations)}")
+        print(f"   ✈️  Origin: {origin}")
+        print(f"   📅 Dates: {travel_dates}")
+        print(f"   💰 Budget: {budget or 'Not specified'}")
+        print(f"   👥 Traveler type: {traveler_type}")
         
         results = []
         
-        for destination in destinations:
+        for i, destination in enumerate(destinations, 1):
+            print(f"\n   🔍 [{i}/{len(destinations)}] Checking feasibility for {destination}...")
             result = self.check_destination_feasibility(
                 destination=destination,
                 origin=origin,
@@ -459,6 +483,9 @@ class FeasibilityChecker:
                 budget=budget,
                 traveler_type=traveler_type
             )
+            print(f"   📊 {destination}: Score {result.feasibility_score:.2f}, Feasible: {result.is_feasible}")
+            if result.issues:
+                print(f"   ⚠️  Issues: {', '.join(result.issues[:2])}")  # Show first 2 issues
             results.append((destination, result))
         
         # Sort by feasibility score (highest first)
