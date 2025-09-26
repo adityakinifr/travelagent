@@ -230,10 +230,21 @@ class PlanningSession:
             Max Travel Time: {destination_request.max_travel_time or 'Not specified'}
             """
             
-            destination_research = self.travel_agent.destination_agent.research_destination_with_feasibility(destination_request_str)
-            
+            destination_progress_updates = []
+
+            def handle_destination_progress(update):
+                destination_progress_updates.append(update)
+
+            destination_research = self.travel_agent.destination_agent.research_destination_with_feasibility(
+                destination_request_str,
+                progress_callback=handle_destination_progress
+            )
+
             print(f"   ✅ Destination research completed!")
             print(f"   📊 Results: {len(destination_research.primary_destinations) if destination_research.primary_destinations else 0} primary, {len(destination_research.alternative_destinations) if destination_research.alternative_destinations else 0} alternative destinations")
+
+            for update in destination_progress_updates:
+                yield update
 
             # Show results found
             num_destinations = len(destination_research.primary_destinations) if destination_research.primary_destinations else 0

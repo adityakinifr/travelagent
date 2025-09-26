@@ -4,7 +4,7 @@ Destination Research Agent for handling specific and abstract destination reques
 
 import os
 import requests
-from typing import Dict, List, Optional, Union, Tuple, Any
+from typing import Dict, List, Optional, Union, Tuple, Any, Callable
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, AIMessage
@@ -1140,7 +1140,11 @@ class DestinationResearchAgent:
         # If no origin found, return error message
         return "Origin location is required to proceed with destination research and feasibility checking. Please specify your departure location (e.g., 'SFO', 'New York', 'London', 'LAX')."
     
-    def research_destination(self, user_request: str) -> DestinationResearchResult:
+    def research_destination(
+        self,
+        user_request: str,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
+    ) -> DestinationResearchResult:
         """Main method to research destinations based on user request"""
         print(f"🔍 Starting destination research for: {user_request}")
         
@@ -1162,6 +1166,44 @@ class DestinationResearchAgent:
         print(f"      Mobility: {request_params.mobility_requirements}")
         print(f"      Seasonal: {request_params.seasonal_preferences}")
         print(f"      Travel dates: {request_params.travel_dates}")
+
+        if progress_callback:
+            def _format_value(value: Any) -> Optional[str]:
+                if value is None:
+                    return None
+                if isinstance(value, list):
+                    return ", ".join(str(item) for item in value) if value else None
+                if isinstance(value, str) and value.strip() == "":
+                    return None
+                return str(value)
+
+            parameter_summary = {
+                "Query": _format_value(request_params.query),
+                "Origin": _format_value(request_params.origin_location),
+                "Max travel time": _format_value(request_params.max_travel_time),
+                "Budget": _format_value(request_params.budget),
+                "Interests": _format_value(request_params.interests),
+                "Traveler type": _format_value(request_params.traveler_type),
+                "Group size": _format_value(request_params.group_size),
+                "Age range": _format_value(request_params.age_range),
+                "Mobility": _format_value(request_params.mobility_requirements),
+                "Seasonal": _format_value(request_params.seasonal_preferences),
+                "Travel dates": _format_value(request_params.travel_dates)
+            }
+
+            filtered_summary = {
+                key: value
+                for key, value in parameter_summary.items()
+                if value not in (None, "")
+            }
+
+            if filtered_summary:
+                progress_callback({
+                    'type': 'progress_update',
+                    'message': '✅ Extracted destination parameters',
+                    'details': 'Identified key details from your request to guide research.',
+                    'parameters': filtered_summary
+                })
         
         # Validate travel dates
         date_error = self._validate_travel_dates(request_params)
@@ -1377,10 +1419,11 @@ class DestinationResearchAgent:
         return "Multiple destinations analyzed - see individual recommendations"
     
     def research_destination_with_feasibility(
-        self, 
-        user_request: str, 
+        self,
+        user_request: str,
         check_feasibility: bool = True,
-        min_feasibility_score: float = 0.6
+        min_feasibility_score: float = 0.6,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None
     ) -> DestinationResearchResult:
         """Research destinations with feasibility checking and backtracking"""
         
@@ -1389,7 +1432,10 @@ class DestinationResearchAgent:
         
         # First, do the normal destination research
         print(f"   🚀 Initializing destination research...")
-        initial_result = self.research_destination(user_request)
+        initial_result = self.research_destination(
+            user_request,
+            progress_callback=progress_callback
+        )
         print(f"   ✅ Initial research completed - found {len(initial_result.primary_destinations) if initial_result.primary_destinations else 0} destinations")
         
         if not check_feasibility:
