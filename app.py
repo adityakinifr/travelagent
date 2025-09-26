@@ -574,7 +574,7 @@ def plan_trip():
                     print(f"   📡 Starting async planning execution...")
                     async for update in session.execute_planning():
                         print(f"   📤 Yielding update: {update.get('type', 'unknown')}")
-                        yield f"data: {json.dumps(update)}\n\n"
+                        yield update
                 
                 # Collect all updates from the async generator
                 async def collect_updates():
@@ -591,7 +591,7 @@ def plan_trip():
                 updates = loop.run_until_complete(collect_updates())
                 print(f"   ✅ Planning execution completed, yielding {len(updates)} updates")
                 for update in updates:
-                    yield update
+                    yield f"data: {json.dumps(update)}\n\n"
                     
             except Exception as e:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
