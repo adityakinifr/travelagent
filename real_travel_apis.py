@@ -531,6 +531,55 @@ class RealTravelAPIs:
         all_cars.extend(amadeus_cars)
 
         return all_cars[:10]
+
+    def search_flights_real_api(self, origin: str, destination: str, departure_date: str,
+                               return_date: str = None, adults: int = 1) -> str:
+        """Search flights using real APIs and return formatted results"""
+        search = FlightSearch(
+            origin=origin,
+            destination=destination,
+            departure_date=departure_date,
+            return_date=return_date,
+            passengers=adults
+        )
+
+        flights = self.search_all_flights(search)
+
+        if not flights:
+            return "No flights found for the given criteria. Please check your search parameters or try again later."
+
+        result = f"Found {len(flights)} flights from {origin} to {destination}:\n\n"
+        for i, flight in enumerate(flights, 1):
+            result += f"{i}. {flight.airline} {flight.flight_number}\n"
+            result += f"   Departure: {flight.departure_time} | Arrival: {flight.arrival_time}\n"
+            result += f"   Duration: {flight.duration} | Price: {flight.price}\n"
+            result += f"   Stops: {flight.stops} | Route: {flight.departure_airport} → {flight.arrival_airport}\n\n"
+
+        return result
+
+    def search_hotels_real_api(self, destination: str, check_in: str, check_out: str,
+                              adults: int = 1) -> str:
+        """Search hotels using real APIs and return formatted results"""
+        search = HotelSearch(
+            destination=destination,
+            check_in=check_in,
+            check_out=check_out,
+            guests=adults
+        )
+
+        hotels = self.search_all_hotels(search)
+
+        if not hotels:
+            return "No hotels found for the given criteria. Please check your search parameters or try again later."
+
+        result = f"Found {len(hotels)} hotels in {destination}:\n\n"
+        for i, hotel in enumerate(hotels, 1):
+            result += f"{i}. {hotel.name}\n"
+            result += f"   Price: {hotel.price_per_night}/night (Total: {hotel.total_price})\n"
+            result += f"   Rating: {hotel.rating} | Location: {hotel.location}\n"
+            result += f"   Amenities: {', '.join(hotel.amenities[:3])}{'...' if len(hotel.amenities) > 3 else ''}\n\n"
+
+        return result
     
 
 # Tool functions for LangChain integration
