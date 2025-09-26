@@ -77,13 +77,20 @@ class DestinationResearchResult(BaseModel):
 class DestinationResearchAgent:
     """Specialized agent for destination research and recommendation"""
     
-    def __init__(self, model_name: str = "gpt-4o-mini", preferences_file: str = "travel_preferences.json"):
+    def __init__(self, model_name: str = "gpt-4o-mini", preferences_file: str = "travel_preferences.json", mock_mode: bool = False):
         """Initialize the destination research agent"""
-        self.llm = ChatOpenAI(
-            model=model_name,
-            temperature=0.3,
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        self.mock_mode = mock_mode
+        
+        if not mock_mode:
+            self.llm = ChatOpenAI(
+                model=model_name,
+                temperature=0.3,
+                api_key=os.getenv("OPENAI_API_KEY")
+            )
+        else:
+            self.llm = None
+            from mock_data import mock_data
+            self.mock_data = mock_data
         self.serpapi_key = os.getenv("SERPAPI_KEY")
         self.preferences_manager = PreferencesManager(preferences_file)
         self.feasibility_checker = FeasibilityChecker(preferences_file)
@@ -581,6 +588,23 @@ class DestinationResearchAgent:
     
     def extract_destination_parameters(self, user_request: str, progress_callback=None) -> DestinationRequest:
         """Extract structured parameters from the user request"""
+        
+        if self.mock_mode:
+            print(f"🎭 MOCK MODE: Using mock extracted parameters")
+            params = self.mock_data.get_mock_extracted_parameters(user_request)
+            
+            # Send extracted parameters to UI if callback provided
+            if progress_callback:
+                print(f"   📤 Sending mock extracted parameters to UI via progress callback")
+                progress_callback({
+                    'type': 'progress_update',
+                    'message': '✅ Successfully extracted travel parameters (MOCK MODE)',
+                    'details': f"Query: {params.get('query', 'N/A')} | Origin: {params.get('origin_location', 'N/A')} | Budget: {params.get('budget', 'N/A')} | Dates: {params.get('travel_dates', 'N/A')} | Group Size: {params.get('group_size', 'N/A')} | Traveler Type: {params.get('traveler_type', 'N/A')}"
+                })
+                print(f"   ✅ Mock progress callback sent successfully")
+            
+            return DestinationRequest(**params)
+        
         prompt = f"""
         Extract destination research parameters from this travel request:
         
@@ -1165,6 +1189,56 @@ class DestinationResearchAgent:
         # If no origin found, return error message
         return "Origin location is required to proceed with destination research and feasibility checking. Please specify your departure location (e.g., 'SFO', 'New York', 'London', 'LAX')."
     
+    def _mock_research_destination(self, user_request: str, progress_callback=None) -> DestinationResearchResult:
+        """Mock destination research for testing"""
+        print(f"🎭 MOCK MODE: Performing mock destination research")
+        
+        # Get mock destinations
+        mock_destinations = self.mock_data.get_mock_destinations(user_request, max_results=3)
+        
+        # Convert to DestinationOption objects
+        primary_destinations = []
+        for dest_data in mock_destinations:
+            dest_option = DestinationOption(
+                name=dest_data["name"],
+                country=dest_data["country"],
+                region=dest_data["region"],
+                description=dest_data["description"],
+                best_time_to_visit=dest_data["best_time_to_visit"],
+                travel_time_from_origin=dest_data["travel_time_from_origin"],
+                estimated_cost=dest_data["estimated_cost"],
+                key_attractions=dest_data["key_attractions"],
+                activities=dest_data["activities"],
+                climate=dest_data["climate"],
+                visa_requirements=dest_data["visa_requirements"],
+                language=dest_data["language"],
+                currency=dest_data["currency"],
+                safety_rating=dest_data["safety_rating"],
+                why_recommended=dest_data["why_recommended"],
+                family_friendly_score=dest_data["family_friendly_score"],
+                seasonal_highlights=dest_data["seasonal_highlights"],
+                image_url=dest_data["image_url"]
+            )
+            primary_destinations.append(dest_option)
+        
+        # Send progress updates
+        if progress_callback:
+            progress_callback({
+                'type': 'progress_update',
+                'message': '🎭 Mock destination research completed',
+                'details': f'Found {len(primary_destinations)} mock destinations'
+            })
+        
+        return DestinationResearchResult(
+            request_type="mock",
+            primary_destinations=primary_destinations,
+            alternative_destinations=[],
+            travel_recommendations=f"Mock research found {len(primary_destinations)} destinations for your request.",
+            date_required=False,
+            budget_required=False,
+            origin_required=False
+        )
+    
     def research_destination(
         self,
         user_request: str,
@@ -1172,6 +1246,10 @@ class DestinationResearchAgent:
     ) -> DestinationResearchResult:
         """Main method to research destinations based on user request"""
         print(f"🔍 Starting destination research for: {user_request}")
+        
+        if self.mock_mode:
+            print(f"🎭 MOCK MODE: Using mock destination research")
+            return self._mock_research_destination(user_request, progress_callback)
         
         # Analyze request type
         request_type = self.analyze_request_type(user_request)

@@ -27,10 +27,11 @@ CORS(app)
 planning_sessions = {}
 
 class PlanningSession:
-    def __init__(self, session_id, request_data):
+    def __init__(self, session_id, request_data, mock_mode=False):
         self.session_id = session_id
         self.request_data = request_data
-        self.travel_agent = TravelAgent()
+        self.mock_mode = mock_mode
+        self.travel_agent = TravelAgent(mock_mode=mock_mode)
         self.current_step = 0
         self.is_complete = False
         self.results = None
@@ -243,6 +244,7 @@ class PlanningSession:
             print(f"   ✅ Destination research completed!")
             print(f"   📊 Results: {len(destination_research.primary_destinations) if destination_research.primary_destinations else 0} primary, {len(destination_research.alternative_destinations) if destination_research.alternative_destinations else 0} alternative destinations")
 
+            # Yield all collected progress updates immediately
             for update in destination_progress_updates:
                 yield update
 
@@ -559,14 +561,16 @@ def plan_trip():
     try:
         request_data = request.json
         session_id = f"session_{int(time.time())}"
+        mock_mode = request_data.get('mock_mode', False)
         
         print(f"\n🌐 API: Received travel planning request")
         print(f"   📝 Request data: {request_data}")
         print(f"   🆔 Session ID: {session_id}")
+        print(f"   🎭 Mock mode: {mock_mode}")
         print(f"   🔧 Creating planning session...")
         
         # Create planning session
-        session = PlanningSession(session_id, request_data)
+        session = PlanningSession(session_id, request_data, mock_mode=mock_mode)
         planning_sessions[session_id] = session
         
         print(f"   ✅ Planning session created and stored")

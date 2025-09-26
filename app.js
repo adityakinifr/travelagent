@@ -400,7 +400,8 @@ class TravelAgentApp {
             budget: document.getElementById('budget').value,
             origin: document.getElementById('origin').value,
             group_size: document.getElementById('group-size').value,
-            traveler_type: document.getElementById('traveler-type').value
+            traveler_type: document.getElementById('traveler-type').value,
+            mock_mode: document.getElementById('mock-mode').checked
         };
 
         if (!request.destination_query.trim()) {
@@ -484,13 +485,16 @@ class TravelAgentApp {
     }
 
     async handlePlanningUpdate(data) {
-        switch (data.type) {
-            case 'step':
-                this.updateStep(data.step, data.message, data.details, data.substeps);
-                break;
-            case 'progress_update':
-                this.updateProgressMessage(data.message, data.details, data.parameters);
-                break;
+        try {
+            console.log('📥 Received update:', data.type, data.message);
+            switch (data.type) {
+                case 'step':
+                    this.updateStep(data.step, data.message, data.details, data.substeps);
+                    break;
+                case 'progress_update':
+                    console.log('📤 Updating progress message:', data.message);
+                    this.updateProgressMessage(data.message, data.details, data.parameters);
+                    break;
             case 'user_input_required':
                 await this.handleUserInputRequired(data);
                 break;
@@ -504,6 +508,11 @@ class TravelAgentApp {
                 this.showMessage(data.message, 'error');
                 this.cancelPlanning();
                 break;
+            }
+        } catch (error) {
+            console.error('❌ Error handling planning update:', error);
+            console.error('❌ Data that caused error:', data);
+            this.showMessage(`Error processing update: ${error.message}`, 'error');
         }
     }
 

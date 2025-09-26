@@ -57,10 +57,11 @@ class AgentState(TypedDict):
 class TravelAgent:
     """LangGraph Travel Agent for creating trip itineraries"""
     
-    def __init__(self, model_name: str = "gpt-4o-mini"):
+    def __init__(self, model_name: str = "gpt-4o-mini", mock_mode: bool = False):
         """Initialize the travel agent with OpenAI model"""
+        self.mock_mode = mock_mode
         self.llm = ChatOpenAI(model=model_name, temperature=0.7)
-        self.destination_agent = DestinationResearchAgent(model_name)
+        self.destination_agent = DestinationResearchAgent(model_name, mock_mode=mock_mode)
         self.tools = self._create_tools()
         self.graph = self._build_graph()
     
