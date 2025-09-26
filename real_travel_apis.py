@@ -311,20 +311,21 @@ class RealTravelAPIs:
             results = search_engine.get_dict()
             
             flights = []
-            if 'flights' in results:
+            if 'flights' in results and isinstance(results['flights'], list):
                 for flight_data in results['flights'][:5]:  # Limit to 5 results
-                    flights.append(FlightResult(
-                        airline=flight_data.get('airline', 'Unknown'),
-                        flight_number=flight_data.get('flight_number', 'N/A'),
-                        departure_time=flight_data.get('departure_time', 'N/A'),
-                        arrival_time=flight_data.get('arrival_time', 'N/A'),
-                        duration=flight_data.get('duration', 'N/A'),
-                        price=flight_data.get('price', 'N/A'),
-                        stops=flight_data.get('stops', 0),
-                        departure_airport=search.origin,
-                        arrival_airport=search.destination,
-                        currency="USD"
-                    ))
+                    if isinstance(flight_data, dict):
+                        flights.append(FlightResult(
+                            airline=flight_data.get('airline', 'Unknown'),
+                            flight_number=flight_data.get('flight_number', 'N/A'),
+                            departure_time=flight_data.get('departure_time', 'N/A'),
+                            arrival_time=flight_data.get('arrival_time', 'N/A'),
+                            duration=flight_data.get('duration', 'N/A'),
+                            price=flight_data.get('price', 'N/A'),
+                            stops=flight_data.get('stops', 0),
+                            departure_airport=search.origin,
+                            arrival_airport=search.destination,
+                            currency="USD"
+                        ))
             
             return flights
             
@@ -360,20 +361,21 @@ class RealTravelAPIs:
             flights_data = response.json()
             flights = []
             
-            if 'data' in flights_data:
+            if 'data' in flights_data and isinstance(flights_data['data'], list):
                 for flight_data in flights_data['data'][:5]:  # Limit to 5 results
-                    flights.append(FlightResult(
-                        airline=flight_data.get('airline', 'Unknown'),
-                        flight_number=flight_data.get('flight_number', 'N/A'),
-                        departure_time=flight_data.get('departure_time', 'N/A'),
-                        arrival_time=flight_data.get('arrival_time', 'N/A'),
-                        duration=flight_data.get('duration', 'N/A'),
-                        price=flight_data.get('price', 'N/A'),
-                        stops=flight_data.get('stops', 0),
-                        departure_airport=search.origin,
-                        arrival_airport=search.destination,
-                        currency="USD"
-                    ))
+                    if isinstance(flight_data, dict):
+                        flights.append(FlightResult(
+                            airline=flight_data.get('airline', 'Unknown'),
+                            flight_number=flight_data.get('flight_number', 'N/A'),
+                            departure_time=flight_data.get('departure_time', 'N/A'),
+                            arrival_time=flight_data.get('arrival_time', 'N/A'),
+                            duration=flight_data.get('duration', 'N/A'),
+                            price=flight_data.get('price', 'N/A'),
+                            stops=flight_data.get('stops', 0),
+                            departure_airport=search.origin,
+                            arrival_airport=search.destination,
+                            currency="USD"
+                        ))
             
             return flights
             
@@ -442,7 +444,7 @@ class RealTravelAPIs:
                     price_per_night=f"{price_data['currency']} {price_data['base']}",
                     total_price=f"{price_data['currency']} {price_data['total']}",
                     rating=str(hotel_data.get('rating', 'N/A')),
-                    location=(hotel_data.get('address') or {}).get('cityName', search.destination) if isinstance(hotel_data.get('address'), dict) else search.destination,
+                    location=hotel_data.get('address', {}).get('cityName', search.destination) if isinstance(hotel_data.get('address'), dict) else search.destination,
                     amenities=amenities,
                     availability=True,
                     currency=price_data['currency']

@@ -510,9 +510,17 @@ class TravelAgent:
         # Build travel options summary
         travel_summary = ""
         if flight_options:
-            travel_summary += f"\nFlight Options:\n{flight_options[0].get('results', 'No flights found')}\n"
+            first_flight_option = flight_options[0]
+            if isinstance(first_flight_option, dict):
+                travel_summary += f"\nFlight Options:\n{first_flight_option.get('results', 'No flights found')}\n"
+            else:
+                travel_summary += f"\nFlight Options:\n{first_flight_option}\n"
         if hotel_options:
-            travel_summary += f"\nHotel Options:\n{hotel_options[0].get('results', 'No hotels found')}\n"
+            first_hotel_option = hotel_options[0]
+            if isinstance(first_hotel_option, dict):
+                travel_summary += f"\nHotel Options:\n{first_hotel_option.get('results', 'No hotels found')}\n"
+            else:
+                travel_summary += f"\nHotel Options:\n{first_hotel_option}\n"
         
         prompt = f"""
         Create a detailed {trip_spec.duration} itinerary for {trip_spec.destination}.

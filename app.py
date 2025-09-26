@@ -38,6 +38,50 @@ class PlanningSession:
         self.user_input_required = None
         self.destination_choice_required = None
 
+    def _extract_flight_data(self, flight_options):
+        """Extract flight data from the complex flight_options structure"""
+        flights = []
+        for option in flight_options:
+            if isinstance(option, dict) and 'results' in option:
+                # For now, return a simplified representation since results is a string
+                flights.append({
+                    'airline': 'Multiple options available',
+                    'price': 'See details',
+                    'duration': 'Various',
+                    'details': option['results']
+                })
+            else:
+                # Handle unexpected format
+                flights.append({
+                    'airline': 'Unknown',
+                    'price': 'Unknown',
+                    'duration': 'Unknown',
+                    'details': str(option)
+                })
+        return flights
+
+    def _extract_hotel_data(self, hotel_options):
+        """Extract hotel data from the complex hotel_options structure"""
+        hotels = []
+        for option in hotel_options:
+            if isinstance(option, dict) and 'results' in option:
+                # For now, return a simplified representation since results is a string
+                hotels.append({
+                    'name': 'Multiple hotels available',
+                    'price': 'See details',
+                    'rating': 'Various',
+                    'details': option['results']
+                })
+            else:
+                # Handle unexpected format
+                hotels.append({
+                    'name': 'Unknown',
+                    'price': 'Unknown',
+                    'rating': 'Unknown',
+                    'details': str(option)
+                })
+        return hotels
+
     async def execute_planning(self):
         """Execute the travel planning process"""
         try:
@@ -347,7 +391,7 @@ class PlanningSession:
             print(f"   📊 Results: {travel_options}")
 
             # Show flight results
-            num_flights = len(travel_options.get('flights', []))
+            num_flights = len(travel_options.get('flight_options', []))
             yield {
                 'type': 'progress_update',
                 'message': f'Found {num_flights} flight options',
@@ -362,7 +406,7 @@ class PlanningSession:
             }
 
             # Show hotel results
-            num_hotels = len(travel_options.get('hotels', []))
+            num_hotels = len(travel_options.get('hotel_options', []))
             yield {
                 'type': 'progress_update',
                 'message': f'Found {num_hotels} hotel options',
@@ -417,22 +461,8 @@ class PlanningSession:
                 'destination': trip_spec.destination,
                 'duration': trip_spec.duration,
                 'summary': itinerary.summary,
-                'flights': [
-                    {
-                        'airline': flight.airline,
-                        'price': flight.price,
-                        'duration': flight.duration
-                    }
-                    for flight in travel_options.get('flights', [])
-                ],
-                'hotels': [
-                    {
-                        'name': hotel.name,
-                        'price': hotel.price,
-                        'rating': hotel.rating
-                    }
-                    for hotel in travel_options.get('hotels', [])
-                ]
+                'flights': self._extract_flight_data(travel_options.get('flight_options', [])),
+                'hotels': self._extract_hotel_data(travel_options.get('hotel_options', []))
             }
 
             self.is_complete = True
