@@ -117,6 +117,10 @@ class TravelAgent:
         """Parse the user's trip request into structured data using intelligent LLM parsing"""
         user_message = state["messages"][-1].content
         
+        print(f"\n🔍 STEP 1: Parsing user request with intelligent LLM parsing")
+        print(f"   📝 User request: {user_message}")
+        print(f"   🧠 Using LLM to extract structured information...")
+        
         # Use LLM to intelligently parse the request
         prompt = f"""
         You are an expert travel agent parsing system. Parse the following user request and extract structured information.
@@ -174,15 +178,16 @@ class TravelAgent:
                 origin=parsed_data.get("origin")
             )
             
+            print(f"   ✅ LLM parsing successful!")
             print(f"   🧠 Intelligently parsed request:")
-            print(f"      Destination: {trip_spec.destination}")
-            print(f"      Duration: {trip_spec.duration}")
-            print(f"      Budget: {trip_spec.budget}")
-            print(f"      Interests: {trip_spec.interests}")
-            print(f"      Travel Style: {trip_spec.travel_style}")
-            print(f"      Accommodation: {trip_spec.accommodation_preference}")
-            print(f"      Travel Dates: {trip_spec.travel_dates}")
-            print(f"      Origin: {trip_spec.origin}")
+            print(f"      🎯 Destination: {trip_spec.destination}")
+            print(f"      ⏰ Duration: {trip_spec.duration}")
+            print(f"      💰 Budget: {trip_spec.budget}")
+            print(f"      🎨 Interests: {trip_spec.interests}")
+            print(f"      🎭 Travel Style: {trip_spec.travel_style}")
+            print(f"      🏨 Accommodation: {trip_spec.accommodation_preference}")
+            print(f"      📅 Travel Dates: {trip_spec.travel_dates}")
+            print(f"      ✈️ Origin: {trip_spec.origin}")
             
         except (json.JSONDecodeError, KeyError, Exception) as e:
             print(f"   ⚠️  LLM parsing failed, using fallback: {e}")
@@ -297,18 +302,28 @@ class TravelAgent:
         """Research the destination using the specialized destination agent"""
         trip_spec = state["trip_spec"]
         
+        print(f"\n🔍 STEP 2: Researching destinations with specialized agent")
+        print(f"   🎯 Target destination: {trip_spec.destination}")
+        print(f"   📅 Travel dates: {trip_spec.travel_dates or 'Not specified'}")
+        print(f"   💰 Budget: {trip_spec.budget or 'Not specified'}")
+        print(f"   ✈️ Origin: {trip_spec.origin or 'Not specified'}")
+        
         # Look up airport codes for destination and origin
         print(f"   🛫 Looking up airport codes...")
         
         # Look up destination airport
+        print(f"      🔍 Searching for destination airport codes: {trip_spec.destination}")
         dest_airports = self._lookup_airport_codes(trip_spec.destination)
-        print(f"      Destination airports: {dest_airports}")
+        print(f"      ✅ Destination airports: {dest_airports}")
         
         # Look up origin airport if specified
         origin_airports = None
         if trip_spec.origin:
+            print(f"      🔍 Searching for origin airport codes: {trip_spec.origin}")
             origin_airports = self._lookup_airport_codes(trip_spec.origin)
-            print(f"      Origin airports: {origin_airports}")
+            print(f"      ✅ Origin airports: {origin_airports}")
+        else:
+            print(f"      ⚠️ No origin specified, will use user preferences")
         
         # Create a comprehensive request for the destination agent
         destination_request = f"""
@@ -325,16 +340,31 @@ class TravelAgent:
         """
         
         # Use the destination research agent with feasibility checking
+        print(f"   🚀 Starting destination research with feasibility checking...")
+        print(f"   📋 Request: {destination_request.strip()}")
+        
         destination_research = self.destination_agent.research_destination_with_feasibility(
             user_request=destination_request,
             check_feasibility=True,
             min_feasibility_score=0.6
         )
         
+        print(f"   ✅ Destination research completed!")
+        print(f"   📊 Found {len(destination_research.primary_destinations) if destination_research.primary_destinations else 0} primary destinations")
+        print(f"   📊 Found {len(destination_research.alternative_destinations) if destination_research.alternative_destinations else 0} alternative destinations")
+        
         # Check if dates, budget, or origin are required
         if (destination_research.date_required or 
             destination_research.budget_required or 
             destination_research.origin_required):
+            print(f"   ⚠️ User input required:")
+            if destination_research.date_required:
+                print(f"      📅 Travel dates required")
+            if destination_research.budget_required:
+                print(f"      💰 Budget required")
+            if destination_research.origin_required:
+                print(f"      ✈️ Origin location required")
+            
             state["destination_research"] = destination_research
             state["messages"].append(AIMessage(content=destination_research.travel_recommendations))
             return state
@@ -408,6 +438,11 @@ class TravelAgent:
         """Search for flights, hotels, and car rentals"""
         trip_spec = state["trip_spec"]
         
+        print(f"\n🔍 STEP 3: Searching for travel options")
+        print(f"   🎯 Destination: {trip_spec.destination}")
+        print(f"   ✈️ Origin: {trip_spec.origin or 'NYC (default)'}")
+        print(f"   📅 Duration: {trip_spec.duration}")
+        
         # For demonstration, we'll use mock dates
         # In a real implementation, you'd parse dates from the trip specification
         departure_date = "2024-06-15"
@@ -415,7 +450,13 @@ class TravelAgent:
         check_in = "2024-06-15"
         check_out = "2024-06-20"
         
+        print(f"   📅 Using dates: {departure_date} to {return_date}")
+        
         # Search flights
+        print(f"   ✈️ Searching for flights...")
+        print(f"      From: {trip_spec.origin or 'NYC'} to {trip_spec.destination}")
+        print(f"      Dates: {departure_date} to {return_date}")
+        
         flight_results = search_flights_real_api(
             origin="NYC",  # Default origin
             destination=trip_spec.destination,
@@ -424,7 +465,13 @@ class TravelAgent:
             passengers=1
         )
         
+        print(f"   ✅ Flight search completed - found {len(flight_results) if flight_results else 0} options")
+        
         # Search hotels
+        print(f"   🏨 Searching for hotels...")
+        print(f"      Destination: {trip_spec.destination}")
+        print(f"      Check-in: {check_in}, Check-out: {check_out}")
+        
         hotel_results = search_hotels_real_api(
             destination=trip_spec.destination,
             check_in=check_in,
@@ -432,6 +479,8 @@ class TravelAgent:
             guests=1,
             rooms=1
         )
+        
+        print(f"   ✅ Hotel search completed - found {len(hotel_results) if hotel_results else 0} options")
         
         state["flight_options"] = [{"results": flight_results}]
         state["hotel_options"] = [{"results": hotel_results}]

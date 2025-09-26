@@ -110,14 +110,20 @@ class PlanningSession:
 
             yield {
                 'type': 'progress_update',
-                'message': '🌐 Performing web search for destination options...',
-                'details': 'Searching travel websites, blogs, and destination databases'
+                'message': '🧠 Parsing request with intelligent LLM...',
+                'details': 'Extracting structured information from your request'
             }
 
             yield {
                 'type': 'progress_update',
-                'message': '✈️ Looking up airport codes for destinations...',
-                'details': 'Finding nearest airports and flight accessibility'
+                'message': '✈️ Looking up airport codes...',
+                'details': 'Finding nearest airports for destination and origin'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '🌐 Performing web search for destination options...',
+                'details': 'Searching travel websites, blogs, and destination databases'
             }
 
             yield {
@@ -130,6 +136,18 @@ class PlanningSession:
                 'type': 'progress_update',
                 'message': '🧠 Analyzing destinations with AI...',
                 'details': 'Using LLM to evaluate and rank destinations'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '🔍 Checking feasibility of destinations...',
+                'details': 'Validating flights, hotels, and budget constraints'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '📊 Scoring and ranking destinations...',
+                'details': 'Applying feasibility scores and user preferences'
             }
 
             # Research destinations
@@ -250,11 +268,29 @@ class PlanningSession:
                 origin=self.request_data.get('origin', '')
             )
 
-            # Show flight search progress
+            # Show detailed travel options search progress
             yield {
                 'type': 'progress_update',
-                'message': 'Searching for flight options...',
+                'message': '🔍 Starting travel options search...',
+                'details': f'Preparing to search flights and hotels for {trip_spec.destination}'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '✈️ Searching for flight options...',
                 'details': f'Checking flights from {trip_spec.origin} to {trip_spec.destination}'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '🏨 Searching for hotel options...',
+                'details': f'Finding accommodations in {trip_spec.destination}'
+            }
+
+            yield {
+                'type': 'progress_update',
+                'message': '💰 Analyzing pricing and availability...',
+                'details': 'Comparing costs and checking budget constraints'
             }
 
             # Search travel options
