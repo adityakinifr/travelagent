@@ -5,6 +5,7 @@ class TravelAgentApp {
         this.isPlanning = false;
         this.preferences = {};
         this.currentRequest = null;
+        this.sseBuffer = '';
         this.init();
     }
 
@@ -426,6 +427,7 @@ class TravelAgentApp {
     }
 
     async executePlanning(request) {
+        this.sseBuffer = '';
         const response = await fetch('/api/plan-trip', {
             method: 'POST',
             headers: {
@@ -445,16 +447,36 @@ class TravelAgentApp {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+            const chunk = decoder.decode(value, { stream: true });
+            this.sseBuffer += chunk;
 
-            for (const line of lines) {
+            const events = this.sseBuffer.split('\n\n');
+            this.sseBuffer = events.pop();
+
+            for (const event of events) {
+                const lines = event.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.slice(6));
+                            await this.handlePlanningUpdate(data);
+                        } catch (e) {
+                            console.error('Error parsing SSE data:', e);
+                        }
+                    }
+                }
+            }
+        }
+
+        if (this.sseBuffer.trim()) {
+            const remainingLines = this.sseBuffer.split('\n');
+            for (const line of remainingLines) {
                 if (line.startsWith('data: ')) {
                     try {
                         const data = JSON.parse(line.slice(6));
                         await this.handlePlanningUpdate(data);
                     } catch (e) {
-                        console.error('Error parsing SSE data:', e);
+                        console.error('Error parsing remaining SSE data:', e);
                     }
                 }
             }
