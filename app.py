@@ -41,8 +41,13 @@ class PlanningSession:
     async def execute_planning(self):
         """Execute the travel planning process"""
         try:
+            print(f"\n🚀 WEB UI: Starting travel planning session {self.session_id}")
+            print(f"   📝 Request data: {self.request_data}")
+            print(f"   🔧 Initializing travel agent...")
+            
             # Step 1: Analyze request
             self.current_step = 1
+            print(f"   📊 Step 1: Analyzing travel request...")
             yield {
                 'type': 'step',
                 'step': 1,
@@ -57,11 +62,22 @@ class PlanningSession:
             }
 
             # Create destination request
+            print(f"\n🚀 WEB UI: Processing user request...")
+            print(f"   📝 Raw request data: {self.request_data}")
+            
             group_size = self.request_data.get('group_size', '')
             if group_size and group_size.isdigit():
                 group_size = int(group_size)
             else:
                 group_size = None
+                
+            print(f"   🔧 Parsing request parameters...")
+            print(f"      Query: {self.request_data.get('destination_query', '')}")
+            print(f"      Origin: {self.request_data.get('origin', '')}")
+            print(f"      Dates: {self.request_data.get('travel_dates', '')}")
+            print(f"      Budget: {self.request_data.get('budget', '')}")
+            print(f"      Traveler type: {self.request_data.get('traveler_type', '')}")
+            print(f"      Group size: {group_size}")
                 
             destination_request = DestinationRequest(
                 query=self.request_data.get('destination_query', ''),
@@ -77,6 +93,8 @@ class PlanningSession:
                 mobility_requirements=None,
                 seasonal_preferences=None
             )
+            
+            print(f"   ✅ Destination request created: {destination_request}")
 
             # Check if budget needs default
             if not self.request_data.get('budget', '').strip():
@@ -151,7 +169,27 @@ class PlanningSession:
             }
 
             # Research destinations
-            destination_research = self.travel_agent.destination_agent.research_destination_with_feasibility(destination_request)
+            print(f"\n🚀 WEB UI: Starting destination research...")
+            print(f"   📋 Request: {destination_request}")
+            print(f"   🔍 Calling destination research agent...")
+            
+            # Convert DestinationRequest object to string for the research method
+            destination_request_str = f"""
+            Destination: {destination_request.query}
+            Origin: {destination_request.origin_location or 'Not specified'}
+            Travel Dates: {destination_request.travel_dates or 'Not specified'}
+            Budget: {destination_request.budget or 'Not specified'}
+            Interests: {destination_request.interests or []}
+            Travel Style: {destination_request.travel_style or 'Not specified'}
+            Traveler Type: {destination_request.traveler_type or 'Not specified'}
+            Group Size: {destination_request.group_size or 'Not specified'}
+            Max Travel Time: {destination_request.max_travel_time or 'Not specified'}
+            """
+            
+            destination_research = self.travel_agent.destination_agent.research_destination_with_feasibility(destination_request_str)
+            
+            print(f"   ✅ Destination research completed!")
+            print(f"   📊 Results: {len(destination_research.primary_destinations) if destination_research.primary_destinations else 0} primary, {len(destination_research.alternative_destinations) if destination_research.alternative_destinations else 0} alternative destinations")
 
             # Show results found
             num_destinations = len(destination_research.primary_destinations) if destination_research.primary_destinations else 0
@@ -294,10 +332,19 @@ class PlanningSession:
             }
 
             # Search travel options
+            print(f"\n🚀 WEB UI: Starting travel options search...")
+            print(f"   🎯 Destination: {trip_spec.destination}")
+            print(f"   ✈️ Origin: {trip_spec.origin}")
+            print(f"   📅 Dates: {trip_spec.travel_dates}")
+            print(f"   💰 Budget: {trip_spec.budget}")
+            
             travel_options = self.travel_agent._search_travel_options({
                 'trip_spec': trip_spec,
                 'destination_research': destination_research
             })
+            
+            print(f"   ✅ Travel options search completed!")
+            print(f"   📊 Results: {travel_options}")
 
             # Show flight results
             num_flights = len(travel_options.get('flights', []))
@@ -346,6 +393,12 @@ class PlanningSession:
             }
 
             # Create itinerary
+            print(f"\n🚀 WEB UI: Creating personalized itinerary...")
+            print(f"   🎯 Destination: {selected_destination}")
+            print(f"   📅 Duration: {trip_spec.duration}")
+            print(f"   💰 Budget: {trip_spec.budget}")
+            print(f"   🎨 Interests: {trip_spec.interests}")
+            
             itinerary = self.travel_agent._create_itinerary({
                 'trip_spec': trip_spec,
                 'travel_options': travel_options,
@@ -466,30 +519,47 @@ def plan_trip():
         request_data = request.json
         session_id = f"session_{int(time.time())}"
         
+        print(f"\n🌐 API: Received travel planning request")
+        print(f"   📝 Request data: {request_data}")
+        print(f"   🆔 Session ID: {session_id}")
+        print(f"   🔧 Creating planning session...")
+        
         # Create planning session
         session = PlanningSession(session_id, request_data)
         planning_sessions[session_id] = session
+        
+        print(f"   ✅ Planning session created and stored")
 
         def generate():
             try:
+                print(f"   🚀 Starting SSE stream generation...")
                 # Create a new event loop for this thread
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
+                print(f"   🔄 Event loop created, starting planning execution...")
+                
                 # Run the async generator
                 async def run_planning():
+                    print(f"   📡 Starting async planning execution...")
                     async for update in session.execute_planning():
+                        print(f"   📤 Yielding update: {update.get('type', 'unknown')}")
                         yield f"data: {json.dumps(update)}\n\n"
                 
                 # Collect all updates from the async generator
                 async def collect_updates():
+                    print(f"   📥 Collecting all updates...")
                     updates = []
                     async for update in run_planning():
                         updates.append(update)
+                        print(f"   📥 Collected update: {update.get('type', 'unknown')}")
+                    print(f"   ✅ Collected {len(updates)} total updates")
                     return updates
                 
                 # Run the async function and yield results
+                print(f"   🔄 Running async planning execution...")
                 updates = loop.run_until_complete(collect_updates())
+                print(f"   ✅ Planning execution completed, yielding {len(updates)} updates")
                 for update in updates:
                     yield update
                     

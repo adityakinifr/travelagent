@@ -493,9 +493,19 @@ class TravelAgent:
         """Create a detailed day-by-day itinerary"""
         trip_spec = state["trip_spec"]
         
+        print(f"\n🔍 STEP 4: Creating personalized itinerary")
+        print(f"   🎯 Destination: {trip_spec.destination}")
+        print(f"   ⏰ Duration: {trip_spec.duration}")
+        print(f"   💰 Budget: {trip_spec.budget}")
+        print(f"   🎨 Interests: {trip_spec.interests}")
+        print(f"   🎭 Travel Style: {trip_spec.travel_style}")
+        
         # Get travel options
         flight_options = state.get("flight_options", [])
         hotel_options = state.get("hotel_options", [])
+        
+        print(f"   ✈️ Flight options available: {len(flight_options)}")
+        print(f"   🏨 Hotel options available: {len(hotel_options)}")
         
         # Build travel options summary
         travel_summary = ""
@@ -531,7 +541,13 @@ class TravelAgent:
         Use the actual travel options provided to make specific recommendations.
         """
         
+        print(f"   🧠 Generating itinerary with LLM...")
+        print(f"   📝 Prompt length: {len(prompt)} characters")
+        
         response = self.llm.invoke([HumanMessage(content=prompt)])
+        
+        print(f"   ✅ LLM response received: {len(response.content)} characters")
+        print(f"   🔧 Creating structured itinerary...")
         
         # Create a structured itinerary
         itinerary = TripItinerary(
