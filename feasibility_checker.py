@@ -64,7 +64,7 @@ class FeasibilityChecker:
         # Check flight availability and cost
         print(f"   ✈️  Checking flight availability...")
         flight_result = self._check_flight_feasibility(origin, destination, departure_date, return_date)
-        if flight_result:
+        if flight_result and isinstance(flight_result, dict):
             flight_available = flight_result.get("available", False)
             flight_cost = flight_result.get("cost", 0)
             estimated_total_cost += flight_cost
@@ -81,7 +81,7 @@ class FeasibilityChecker:
         # Check hotel availability and cost
         print(f"   🏨 Checking hotel availability...")
         hotel_result = self._check_hotel_feasibility(destination, departure_date, return_date, traveler_type)
-        if hotel_result:
+        if hotel_result and isinstance(hotel_result, dict):
             hotel_available = hotel_result.get("available", False)
             hotel_cost = hotel_result.get("cost", 0)
             estimated_total_cost += hotel_cost
