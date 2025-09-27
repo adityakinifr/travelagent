@@ -10,6 +10,7 @@ class TravelAgentApp {
         this.activeStep = 1;
         this.maxStepReached = 1;
         this.stepEntries = this.initializeStepEntries();
+        this.stepUnread = this.initializeStepUnread();
         this.progressStepElements = [];
         this.init();
     }
@@ -30,8 +31,17 @@ class TravelAgentApp {
         return entries;
     }
 
+    initializeStepUnread() {
+        const unread = {};
+        for (let i = 1; i <= this.totalSteps; i++) {
+            unread[i] = 0;
+        }
+        return unread;
+    }
+
     resetProgressState() {
         this.stepEntries = this.initializeStepEntries();
+        this.stepUnread = this.initializeStepUnread();
         this.currentStep = 0;
         this.activeStep = 1;
         this.maxStepReached = this.isPlanning ? 1 : 0;
@@ -88,6 +98,11 @@ class TravelAgentApp {
 
         if (activate) {
             this.activeStep = targetStep;
+            this.stepUnread[targetStep] = 0;
+        }
+
+        if (!activate && this.activeStep !== targetStep) {
+            this.stepUnread[targetStep] = (this.stepUnread[targetStep] || 0) + 1;
         }
 
         if (this.activeStep === targetStep || activate) {
@@ -102,6 +117,7 @@ class TravelAgentApp {
         if (!content) return;
 
         const entries = this.stepEntries[this.activeStep] || [];
+        this.stepUnread[this.activeStep] = 0;
 
         if (entries.length === 0) {
             content.innerHTML = this.wrapProgressEntry(
@@ -114,6 +130,7 @@ class TravelAgentApp {
 
         // Initialize any interactive elements within the active step content
         this.attachInteractiveHandlers(this.activeStep);
+        this.updateStepIndicators();
     }
 
     showStep(step, options = {}) {
@@ -123,6 +140,7 @@ class TravelAgentApp {
         }
 
         this.activeStep = Math.min(Math.max(step, 1), this.totalSteps);
+        this.stepUnread[this.activeStep] = 0;
         this.renderActiveStep();
         this.updateStepIndicators();
     }
@@ -137,6 +155,8 @@ class TravelAgentApp {
             const circle = stepElement.querySelector('.step-circle');
             const isActive = stepNumber === this.activeStep;
             const isAccessible = stepNumber <= this.maxStepReached || isActive;
+            const labelElement = stepElement.querySelector('.step-label');
+            const baseLabel = labelElement ? labelElement.textContent : `Step ${stepNumber}`;
 
             if (circle) {
                 circle.classList.remove('active', 'completed');
@@ -157,6 +177,16 @@ class TravelAgentApp {
                 stepElement.classList.add('viewing');
             } else {
                 stepElement.classList.remove('viewing');
+            }
+
+            if ((this.stepUnread[stepNumber] || 0) > 0 && !isActive) {
+                stepElement.classList.add('has-updates');
+                stepElement.setAttribute('data-unread', this.stepUnread[stepNumber]);
+                stepElement.setAttribute('aria-label', `${baseLabel} (${this.stepUnread[stepNumber]} new updates)`);
+            } else {
+                stepElement.classList.remove('has-updates');
+                stepElement.removeAttribute('data-unread');
+                stepElement.setAttribute('aria-label', baseLabel);
             }
 
             stepElement.setAttribute('aria-selected', isActive ? 'true' : 'false');
@@ -792,7 +822,8 @@ class TravelAgentApp {
         const parametersSection = this.createParametersSection(parameters);
         const entryHtml = this.wrapProgressEntry(`${statusMessage}${detailsSection}${parametersSection}`);
 
-        this.addStepEntry(targetStep, { html: entryHtml });
+        const shouldActivate = targetStep === this.activeStep;
+        this.addStepEntry(targetStep, { html: entryHtml }, { activate: shouldActivate });
     }
 
     async handleUserInputRequired(data) {

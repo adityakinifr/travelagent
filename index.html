@@ -289,6 +289,7 @@
             color: #a0aec0;
             margin-bottom: 8px;
             transition: all 0.3s ease;
+            position: relative;
         }
 
         .progress-step.available {
@@ -312,6 +313,24 @@
 
         .progress-step.viewing .step-circle {
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+
+        .progress-step.has-updates .step-circle::after {
+            content: attr(data-unread);
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 20px;
+            height: 20px;
+            border-radius: 9999px;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
         }
 
         .step-label {
