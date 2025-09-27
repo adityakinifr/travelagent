@@ -274,6 +274,7 @@
             align-items: center;
             position: relative;
             z-index: 2;
+            transition: transform 0.2s ease;
         }
 
         .step-circle {
@@ -290,6 +291,15 @@
             transition: all 0.3s ease;
         }
 
+        .progress-step.available {
+            cursor: pointer;
+        }
+
+        .progress-step.available:hover .step-circle {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.25);
+        }
+
         .step-circle.active {
             background: #667eea;
             color: white;
@@ -300,11 +310,16 @@
             color: white;
         }
 
+        .progress-step.viewing .step-circle {
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+        }
+
         .step-label {
             font-size: 12px;
             text-align: center;
             color: #718096;
             font-weight: 500;
+            transition: color 0.2s ease;
         }
 
         .step-circle.active + .step-label,
@@ -313,8 +328,26 @@
             font-weight: 600;
         }
 
+        .progress-step.viewing .step-label {
+            color: #1e3a8a;
+            font-weight: 700;
+        }
+
         .progress-content {
             min-height: 200px;
+        }
+
+        .progress-entry {
+            background: rgba(248, 250, 252, 0.92);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 18px;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .progress-entry:last-child {
+            margin-bottom: 0;
         }
 
         .progress-details {
@@ -717,24 +750,24 @@
                     </button>
                 </div>
 
-                <div class="progress-steps">
-                    <div class="progress-step">
+                <div class="progress-steps" role="tablist">
+                    <div class="progress-step" data-step="1" role="tab" tabindex="0">
                         <div class="step-circle" id="step-1">1</div>
                         <div class="step-label">Analyzing Request</div>
                     </div>
-                    <div class="progress-step">
+                    <div class="progress-step" data-step="2" role="tab" tabindex="-1">
                         <div class="step-circle" id="step-2">2</div>
                         <div class="step-label">Researching Destinations</div>
                     </div>
-                    <div class="progress-step">
+                    <div class="progress-step" data-step="3" role="tab" tabindex="-1">
                         <div class="step-circle" id="step-3">3</div>
                         <div class="step-label">Checking Feasibility</div>
                     </div>
-                    <div class="progress-step">
+                    <div class="progress-step" data-step="4" role="tab" tabindex="-1">
                         <div class="step-circle" id="step-4">4</div>
                         <div class="step-label">Finding Options</div>
                     </div>
-                    <div class="progress-step">
+                    <div class="progress-step" data-step="5" role="tab" tabindex="-1">
                         <div class="step-circle" id="step-5">5</div>
                         <div class="step-label">Creating Itinerary</div>
                     </div>

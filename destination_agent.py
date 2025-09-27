@@ -589,6 +589,19 @@ class DestinationResearchAgent:
     def extract_destination_parameters(self, user_request: str, progress_callback=None) -> DestinationRequest:
         """Extract structured parameters from the user request"""
         
+        def format_parameters_for_ui(params_dict):
+            """Return only meaningful parameters for UI display"""
+            filtered = {}
+            for key, value in params_dict.items():
+                if value is None:
+                    continue
+                if isinstance(value, str) and not value.strip():
+                    continue
+                if isinstance(value, (list, tuple, set, dict)) and not value:
+                    continue
+                filtered[key] = value
+            return filtered
+
         if self.mock_mode:
             print(f"🎭 MOCK MODE: Using mock extracted parameters")
             params = self.mock_data.get_mock_extracted_parameters(user_request)
@@ -596,10 +609,12 @@ class DestinationResearchAgent:
             # Send extracted parameters to UI if callback provided
             if progress_callback:
                 print(f"   📤 Sending mock extracted parameters to UI via progress callback")
+                ui_parameters = format_parameters_for_ui(params)
                 progress_callback({
                     'type': 'progress_update',
                     'message': '✅ Successfully extracted travel parameters (MOCK MODE)',
-                    'details': f"Query: {params.get('query', 'N/A')} | Origin: {params.get('origin_location', 'N/A')} | Budget: {params.get('budget', 'N/A')} | Dates: {params.get('travel_dates', 'N/A')} | Group Size: {params.get('group_size', 'N/A')} | Traveler Type: {params.get('traveler_type', 'N/A')}"
+                    'details': f"Query: {params.get('query', 'N/A')} | Origin: {params.get('origin_location', 'N/A')} | Budget: {params.get('budget', 'N/A')} | Dates: {params.get('travel_dates', 'N/A')} | Group Size: {params.get('group_size', 'N/A')} | Traveler Type: {params.get('traveler_type', 'N/A')}",
+                    'parameters': ui_parameters
                 })
                 print(f"   ✅ Mock progress callback sent successfully")
             
@@ -647,10 +662,12 @@ class DestinationResearchAgent:
             # Send extracted parameters to UI if callback provided
             if progress_callback:
                 print(f"   📤 Sending extracted parameters to UI via progress callback")
+                ui_parameters = format_parameters_for_ui(params)
                 progress_callback({
                     'type': 'progress_update',
                     'message': '✅ Successfully extracted travel parameters',
-                    'details': f"Query: {params.get('query', 'N/A')} | Origin: {params.get('origin_location', 'N/A')} | Budget: {params.get('budget', 'N/A')} | Dates: {params.get('travel_dates', 'N/A')} | Group Size: {params.get('group_size', 'N/A')} | Traveler Type: {params.get('traveler_type', 'N/A')}"
+                    'details': f"Query: {params.get('query', 'N/A')} | Origin: {params.get('origin_location', 'N/A')} | Budget: {params.get('budget', 'N/A')} | Dates: {params.get('travel_dates', 'N/A')} | Group Size: {params.get('group_size', 'N/A')} | Traveler Type: {params.get('traveler_type', 'N/A')}",
+                    'parameters': ui_parameters
                 })
                 print(f"   ✅ Progress callback sent successfully")
             else:
@@ -770,10 +787,26 @@ class DestinationResearchAgent:
             # Send extracted parameters to UI if callback provided (fallback parsing)
             if progress_callback:
                 print(f"   📤 Sending extracted parameters to UI via progress callback (fallback)")
+                fallback_params = {
+                    'query': user_request,
+                    'origin_location': origin_location,
+                    'max_travel_time': max_travel_time,
+                    'travel_dates': None,
+                    'budget': None,
+                    'interests': [],
+                    'travel_style': None,
+                    'traveler_type': traveler_type,
+                    'group_size': group_size,
+                    'age_range': age_range,
+                    'mobility_requirements': mobility_requirements,
+                    'seasonal_preferences': seasonal_preferences
+                }
+                ui_parameters = format_parameters_for_ui(fallback_params)
                 progress_callback({
                     'type': 'progress_update',
                     'message': '✅ Successfully extracted travel parameters (fallback parsing)',
-                    'details': f"Query: {user_request[:50]}... | Origin: {origin_location or 'N/A'} | Budget: N/A | Dates: N/A | Group Size: {group_size or 'N/A'} | Traveler Type: {traveler_type or 'N/A'}"
+                    'details': f"Query: {user_request[:50]}... | Origin: {origin_location or 'N/A'} | Budget: N/A | Dates: N/A | Group Size: {group_size or 'N/A'} | Traveler Type: {traveler_type or 'N/A'}",
+                    'parameters': ui_parameters
                 })
                 print(f"   ✅ Progress callback sent successfully (fallback)")
             else:

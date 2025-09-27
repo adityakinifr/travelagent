@@ -6,6 +6,11 @@ class TravelAgentApp {
         this.preferences = {};
         this.currentRequest = null;
         this.sseBuffer = '';
+        this.totalSteps = 5;
+        this.activeStep = 1;
+        this.maxStepReached = 1;
+        this.stepEntries = this.initializeStepEntries();
+        this.progressStepElements = [];
         this.init();
     }
 
@@ -13,6 +18,25 @@ class TravelAgentApp {
         await this.loadPreferences();
         this.setupEventListeners();
         this.renderPreferencesEditor();
+        this.setupProgressNavigation();
+        this.resetProgressState();
+    }
+
+    initializeStepEntries() {
+        const entries = {};
+        for (let i = 1; i <= this.totalSteps; i++) {
+            entries[i] = [];
+        }
+        return entries;
+    }
+
+    resetProgressState() {
+        this.stepEntries = this.initializeStepEntries();
+        this.currentStep = 0;
+        this.activeStep = 1;
+        this.maxStepReached = this.isPlanning ? 1 : 0;
+        this.renderActiveStep();
+        this.updateStepIndicators();
     }
 
     setupEventListeners() {
@@ -26,6 +50,198 @@ class TravelAgentApp {
         document.getElementById('preferences-editor').addEventListener('change', () => {
             this.autoSavePreferences();
         });
+    }
+
+    setupProgressNavigation() {
+        this.progressStepElements = Array.from(document.querySelectorAll('.progress-step'));
+        this.progressStepElements.forEach((stepElement, index) => {
+            const stepNumber = parseInt(stepElement.dataset.step, 10) || index + 1;
+            stepElement.dataset.step = stepNumber;
+            stepElement.setAttribute('role', 'tab');
+            if (!stepElement.hasAttribute('tabindex')) {
+                stepElement.setAttribute('tabindex', stepNumber === 1 ? '0' : '-1');
+            }
+
+            stepElement.addEventListener('click', () => {
+                this.showStep(stepNumber);
+            });
+
+            stepElement.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    this.showStep(stepNumber);
+                }
+            });
+        });
+        this.updateStepIndicators();
+    }
+
+    addStepEntry(step, entry, options = {}) {
+        const { replace = false, activate = false } = options;
+        const targetStep = Math.min(Math.max(step, 1), this.totalSteps);
+
+        if (!this.stepEntries[targetStep] || replace) {
+            this.stepEntries[targetStep] = [];
+        }
+
+        this.stepEntries[targetStep].push(entry);
+
+        if (activate) {
+            this.activeStep = targetStep;
+        }
+
+        if (this.activeStep === targetStep || activate) {
+            this.renderActiveStep();
+        }
+
+        this.updateStepIndicators();
+    }
+
+    renderActiveStep() {
+        const content = document.getElementById('progress-content');
+        if (!content) return;
+
+        const entries = this.stepEntries[this.activeStep] || [];
+
+        if (entries.length === 0) {
+            content.innerHTML = this.wrapProgressEntry(
+                this.createStatusMessage('fas fa-clock', 'info', 'Waiting for updates for this stage...')
+            );
+            return;
+        }
+
+        content.innerHTML = entries.map((entry) => entry.html).join('');
+
+        // Initialize any interactive elements within the active step content
+        this.attachInteractiveHandlers(this.activeStep);
+    }
+
+    showStep(step, options = {}) {
+        const { force = false } = options;
+        if (!force && step > this.maxStepReached) {
+            return;
+        }
+
+        this.activeStep = Math.min(Math.max(step, 1), this.totalSteps);
+        this.renderActiveStep();
+        this.updateStepIndicators();
+    }
+
+    updateStepIndicators(currentStep = this.currentStep) {
+        if (!Array.isArray(this.progressStepElements) || this.progressStepElements.length === 0) {
+            this.progressStepElements = Array.from(document.querySelectorAll('.progress-step'));
+        }
+
+        this.progressStepElements.forEach((stepElement) => {
+            const stepNumber = parseInt(stepElement.dataset.step, 10) || 1;
+            const circle = stepElement.querySelector('.step-circle');
+            const isActive = stepNumber === this.activeStep;
+            const isAccessible = stepNumber <= this.maxStepReached || isActive;
+
+            if (circle) {
+                circle.classList.remove('active', 'completed');
+                if (currentStep && stepNumber < currentStep) {
+                    circle.classList.add('completed');
+                } else if (currentStep && stepNumber === currentStep) {
+                    circle.classList.add('active');
+                }
+            }
+
+            if (stepNumber <= this.maxStepReached) {
+                stepElement.classList.add('available');
+            } else {
+                stepElement.classList.remove('available');
+            }
+
+            if (isActive) {
+                stepElement.classList.add('viewing');
+            } else {
+                stepElement.classList.remove('viewing');
+            }
+
+            stepElement.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            stepElement.setAttribute('aria-disabled', isAccessible ? 'false' : 'true');
+            stepElement.setAttribute('tabindex', isAccessible ? '0' : '-1');
+        });
+    }
+
+    attachInteractiveHandlers(step) {
+        const entries = this.stepEntries[step] || [];
+        entries.forEach((entry) => {
+            if (typeof entry.setup === 'function') {
+                entry.setup();
+            }
+        });
+    }
+
+    escapeHTML(value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    createStatusMessage(iconClass, statusType, message) {
+        const safeMessage = message ? String(message) : '';
+        return `
+            <div class="status-message status-${statusType}">
+                <i class="${iconClass}"></i>
+                ${this.escapeHTML(safeMessage)}
+            </div>
+        `;
+    }
+
+    createDetailsSection(title, details) {
+        if (!details) return '';
+        return `
+            <div class="progress-details">
+                <h4><i class="fas fa-info-circle"></i> ${this.escapeHTML(title)}</h4>
+                <p>${this.escapeHTML(details)}</p>
+            </div>
+        `;
+    }
+
+    createSubstepsSection(substeps) {
+        if (!Array.isArray(substeps) || substeps.length === 0) return '';
+        const items = substeps.map((step) => `<li><i class="fas fa-clock"></i> ${this.escapeHTML(step)}</li>`).join('');
+        return `
+            <div class="progress-substeps">
+                <h4><i class="fas fa-tasks"></i> Current Tasks</h4>
+                <ul class="substeps-list">${items}</ul>
+            </div>
+        `;
+    }
+
+    createParametersSection(parameters) {
+        if (!parameters || Object.keys(parameters).length === 0) return '';
+
+        const parameterItems = Object.entries(parameters).map(([key, value]) => {
+            let displayValue = value;
+            if (Array.isArray(value)) {
+                displayValue = value.join(', ');
+            } else if (value && typeof value === 'object') {
+                displayValue = JSON.stringify(value);
+            }
+            return `
+                <li>
+                    <span class="param-key">${this.escapeHTML(key)}:</span>
+                    <span class="param-value">${this.escapeHTML(displayValue)}</span>
+                </li>
+            `;
+        }).join('');
+
+        return `
+            <div class="progress-details">
+                <h4><i class="fas fa-list-ul"></i> Extracted Parameters</h4>
+                <ul class="parameters-list">${parameterItems}</ul>
+            </div>
+        `;
+    }
+
+    wrapProgressEntry(content) {
+        return `<div class="progress-entry">${content}</div>`;
     }
 
     async loadPreferences() {
@@ -393,7 +609,6 @@ class TravelAgentApp {
     async startPlanning() {
         if (this.isPlanning) return;
 
-        const formData = new FormData(document.getElementById('travel-request-form'));
         const request = {
             destination_query: document.getElementById('destination-query').value,
             travel_dates: document.getElementById('travel-dates').value,
@@ -411,7 +626,7 @@ class TravelAgentApp {
 
         this.isPlanning = true;
         this.currentRequest = request;
-        this.currentStep = 0;
+        this.resetProgressState();
 
         // Show progress card
         document.getElementById('progress-card').classList.add('active');
@@ -541,121 +756,48 @@ class TravelAgentApp {
 
     updateStep(step, message, details = null, substeps = null) {
         this.currentStep = step;
-        
-        // Update step circles
-        for (let i = 1; i <= 5; i++) {
-            const circle = document.getElementById(`step-${i}`);
-            if (i < step) {
-                circle.classList.add('completed');
-                circle.classList.remove('active');
-            } else if (i === step) {
-                circle.classList.add('active');
-                circle.classList.remove('completed');
-            } else {
-                circle.classList.remove('active', 'completed');
-            }
-        }
+        this.maxStepReached = Math.max(this.maxStepReached, step);
+        this.activeStep = step;
 
-        // Update progress content with detailed information
-        const content = document.getElementById('progress-content');
-        let progressHTML = `
-            <div class="status-message status-info">
-                <i class="fas fa-info-circle"></i>
-                ${message}
-            </div>
-        `;
+        const statusMessage = this.createStatusMessage('fas fa-info-circle', 'info', message);
+        const detailsSection = details ? this.createDetailsSection('Processing Details', details) : '';
+        const substepsSection = this.createSubstepsSection(substeps);
+        const entryHtml = this.wrapProgressEntry(`${statusMessage}${detailsSection}${substepsSection}`);
 
-        if (details) {
-            progressHTML += `
-                <div class="progress-details">
-                    <h4><i class="fas fa-search"></i> Processing Details</h4>
-                    <p>${details}</p>
-                </div>
-            `;
-        }
-
-        if (substeps && substeps.length > 0) {
-            progressHTML += `
-                <div class="progress-substeps">
-                    <h4><i class="fas fa-tasks"></i> Current Tasks</h4>
-                    <ul class="substeps-list">
-                        ${substeps.map(substep => `<li><i class="fas fa-clock"></i> ${substep}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-
-        content.innerHTML = progressHTML;
+        this.addStepEntry(step, { html: entryHtml }, { replace: true, activate: true });
+        this.updateStepIndicators(step);
     }
 
     updateProgressMessage(message, details = null, parameters = null) {
-        // Update progress content with real-time message
-        const content = document.getElementById('progress-content');
-        
-        // Ensure message is a string
         const safeMessage = message ? String(message) : 'Processing...';
-        
-        let progressHTML = `
-            <div class="status-message status-info">
-                <i class="fas fa-spinner fa-spin"></i>
-                ${safeMessage}
-            </div>
-        `;
+        const targetStep = this.currentStep || this.activeStep || 1;
+        this.maxStepReached = Math.max(this.maxStepReached, targetStep);
 
-        const escapeHTML = (value) => String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-        if (details) {
-            progressHTML += `
-                <div class="progress-details">
-                    <h4><i class="fas fa-info-circle"></i> Current Activity</h4>
-                    <p>${details}</p>
-                </div>
-            `;
+        let iconClass = 'fas fa-info-circle';
+        let statusType = 'info';
+        const lowered = safeMessage.toLowerCase();
+        if (safeMessage.includes('✅') || lowered.includes('success')) {
+            iconClass = 'fas fa-check-circle';
+            statusType = 'success';
+        } else if (safeMessage.includes('⚠️') || lowered.includes('warning')) {
+            iconClass = 'fas fa-exclamation-triangle';
+            statusType = 'warning';
+        } else if (safeMessage.includes('❌') || lowered.includes('error')) {
+            iconClass = 'fas fa-exclamation-circle';
+            statusType = 'error';
         }
 
-        if (parameters && Object.keys(parameters).length > 0) {
-            const parameterItems = Object.entries(parameters)
-                .map(([key, value]) => {
-                    let displayValue = value;
-                    if (Array.isArray(value)) {
-                        displayValue = value.join(', ');
-                    } else if (value === null || value === undefined) {
-                        displayValue = '';
-                    }
-                    return `
-                        <li>
-                            <span class="param-key">${escapeHTML(key)}:</span>
-                            <span class="param-value">${escapeHTML(displayValue)}</span>
-                        </li>
-                    `;
-                })
-                .join('');
+        const statusMessage = this.createStatusMessage(iconClass, statusType, safeMessage);
+        const detailsSection = this.createDetailsSection('Current Activity', details);
+        const parametersSection = this.createParametersSection(parameters);
+        const entryHtml = this.wrapProgressEntry(`${statusMessage}${detailsSection}${parametersSection}`);
 
-            progressHTML += `
-                <div class="progress-details">
-                    <h4><i class="fas fa-list-ul"></i> Extracted Parameters</h4>
-                    <ul class="parameters-list">
-                        ${parameterItems}
-                    </ul>
-                </div>
-            `;
-        }
-
-        content.innerHTML = progressHTML;
+        this.addStepEntry(targetStep, { html: entryHtml });
     }
 
     async handleUserInputRequired(data) {
-        const content = document.getElementById('progress-content');
-        content.innerHTML = `
-            <div class="status-message status-warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                ${data.message}
-            </div>
+        const step = this.currentStep || this.activeStep || 1;
+        const formHtml = `
             <div class="user-input-section">
                 <h3>Please provide the missing information:</h3>
                 <form id="user-input-form">
@@ -667,26 +809,41 @@ class TravelAgentApp {
             </div>
         `;
 
-        // Setup form submission
-        document.getElementById('user-input-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const inputData = Object.fromEntries(formData.entries());
-            
-            // Send user input back to server
-            const response = await fetch('/api/user-input', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(inputData)
-            });
+        const entryHtml = this.wrapProgressEntry(
+            `${this.createStatusMessage('fas fa-exclamation-triangle', 'warning', data.message)}${formHtml}`
+        );
 
-            if (response.ok) {
-                // Continue with planning
-                this.updateStep(this.currentStep, 'Continuing with your input...');
+        this.addStepEntry(step, {
+            html: entryHtml,
+            setup: () => {
+                const form = document.getElementById('user-input-form');
+                if (form && !form.dataset.bound) {
+                    form.dataset.bound = 'true';
+                    form.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.target);
+                        const inputData = Object.fromEntries(formData.entries());
+
+                        const response = await fetch('/api/user-input', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(inputData)
+                        });
+
+                        if (response.ok) {
+                            const currentEntries = this.stepEntries[step] || [];
+                            this.stepEntries[step] = currentEntries.filter((entry) => !entry.html.includes('user-input-form'));
+                            const confirmationHtml = this.wrapProgressEntry(
+                                this.createStatusMessage('fas fa-check-circle', 'success', 'Thanks! Continuing with your input...')
+                            );
+                            this.addStepEntry(step, { html: confirmationHtml }, { activate: true });
+                        }
+                    });
+                }
             }
-        });
+        }, { activate: true });
     }
 
     generateUserInputForm(requiredFields) {
@@ -728,76 +885,88 @@ class TravelAgentApp {
     }
 
     async handleDestinationChoice(data) {
-        const content = document.getElementById('progress-content');
-        content.innerHTML = `
-            <div class="status-message status-info">
-                <i class="fas fa-map-marked-alt"></i>
-                Found ${data.destinations.length} destination options for you!
+        const step = this.currentStep || this.activeStep || 1;
+        const destinationsHtml = data.destinations.map((dest, index) => `
+            <div class="destination-card">
+                <div class="destination-image">
+                    ${dest.image_url ?
+                        `<img src="${dest.image_url}" alt="${dest.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <div style="display: none;"><i class="fas fa-map-marker-alt"></i> ${dest.name}</div>` :
+                        `<div><i class="fas fa-map-marker-alt"></i> ${dest.name}</div>`
+                    }
+                </div>
+                <div class="destination-content">
+                    <div class="destination-header">
+                        <div>
+                            <div class="destination-name">${dest.name}</div>
+                            <div class="destination-location">${dest.country}</div>
+                        </div>
+                        <input type="radio" name="destination_choice" value="${index}" id="dest-${index}" required>
+                    </div>
+                    <div class="destination-description">${dest.description}</div>
+                    <div class="destination-details">
+                        <div class="detail-item">
+                            <i class="fas fa-clock"></i>
+                            <span>Best time: ${dest.best_time_to_visit}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-star"></i>
+                            <span>Family score: ${dest.family_friendly_score || 'N/A'}/10</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Safety: ${dest.safety_rating}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
+        `).join('');
+
+        const entryHtml = this.wrapProgressEntry(`
+            ${this.createStatusMessage('fas fa-map-marked-alt', 'info', `Found ${data.destinations.length} destination options for you!`)}
             <div class="user-input-section">
                 <h3>Please choose your preferred destination:</h3>
                 <form id="destination-choice-form">
-                    ${data.destinations.map((dest, index) => `
-                        <div class="destination-card">
-                            <div class="destination-image">
-                                ${dest.image_url ? 
-                                    `<img src="${dest.image_url}" alt="${dest.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                     <div style="display: none;"><i class="fas fa-map-marker-alt"></i> ${dest.name}</div>` :
-                                    `<div><i class="fas fa-map-marker-alt"></i> ${dest.name}</div>`
-                                }
-                            </div>
-                            <div class="destination-content">
-                                <div class="destination-header">
-                                    <div>
-                                        <div class="destination-name">${dest.name}</div>
-                                        <div class="destination-location">${dest.country}</div>
-                                    </div>
-                                    <input type="radio" name="destination_choice" value="${index}" id="dest-${index}" required>
-                                </div>
-                                <div class="destination-description">${dest.description}</div>
-                                <div class="destination-details">
-                                    <div class="detail-item">
-                                        <i class="fas fa-clock"></i>
-                                        <span>Best time: ${dest.best_time_to_visit}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <i class="fas fa-star"></i>
-                                        <span>Family score: ${dest.family_friendly_score || 'N/A'}/10</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <i class="fas fa-shield-alt"></i>
-                                        <span>Safety: ${dest.safety_rating}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
+                    ${destinationsHtml}
                     <button type="submit" class="btn">
                         <i class="fas fa-check"></i> Select Destination
                     </button>
                 </form>
             </div>
-        `;
+        `);
 
-        // Setup form submission
-        document.getElementById('destination-choice-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const choice = formData.get('destination_choice');
-            
-            // Send destination choice back to server
-            const response = await fetch('/api/destination-choice', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ choice: parseInt(choice) })
-            });
+        this.addStepEntry(step, {
+            html: entryHtml,
+            setup: () => {
+                const form = document.getElementById('destination-choice-form');
+                if (form && !form.dataset.bound) {
+                    form.dataset.bound = 'true';
+                    form.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.target);
+                        const choice = formData.get('destination_choice');
 
-            if (response.ok) {
-                this.updateStep(this.currentStep + 1, 'Selected destination! Finding travel options...');
+                        const response = await fetch('/api/destination-choice', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ choice: parseInt(choice, 10) })
+                        });
+
+                        if (response.ok) {
+                            const currentEntries = this.stepEntries[step] || [];
+                            this.stepEntries[step] = currentEntries.filter((entry) => !entry.html.includes('destination-choice-form'));
+                            const confirmationHtml = this.wrapProgressEntry(
+                                this.createStatusMessage('fas fa-check-circle', 'success', 'Destination selected! Finding the best options for you...')
+                            );
+                            this.addStepEntry(step, { html: confirmationHtml }, { activate: true });
+                            this.updateStep(this.currentStep + 1, 'Selected destination! Finding travel options...');
+                        }
+                    });
+                }
             }
-        });
+        }, { activate: true });
     }
 
     showResults(results) {
@@ -896,15 +1065,9 @@ class TravelAgentApp {
 
     cancelPlanning() {
         this.isPlanning = false;
-        this.currentStep = 0;
         document.getElementById('plan-trip-btn').disabled = false;
         document.getElementById('progress-card').classList.remove('active');
-        
-        // Reset step circles
-        for (let i = 1; i <= 5; i++) {
-            const circle = document.getElementById(`step-${i}`);
-            circle.classList.remove('active', 'completed');
-        }
+        this.resetProgressState();
     }
 }
 
