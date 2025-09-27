@@ -51,15 +51,25 @@ class TravelAgentApp {
 
     setupEventListeners() {
         // Travel request form submission
-        document.getElementById('travel-request-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.startPlanning();
-        });
+        const travelForm = document.getElementById('travel-request-form');
+        if (travelForm) {
+            travelForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.startPlanning();
+            });
+        } else {
+            console.warn('⚠️ travel-request-form element not found; planning cannot be started from this page.');
+        }
 
         // Auto-save preferences on change
-        document.getElementById('preferences-editor').addEventListener('change', () => {
-            this.autoSavePreferences();
-        });
+        const preferencesEditor = document.getElementById('preferences-editor');
+        if (preferencesEditor) {
+            preferencesEditor.addEventListener('change', () => {
+                this.autoSavePreferences();
+            });
+        } else {
+            console.warn('⚠️ preferences-editor element not found; auto-save disabled for this page.');
+        }
     }
 
     setupProgressNavigation() {
